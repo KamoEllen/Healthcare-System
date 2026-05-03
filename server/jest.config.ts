@@ -17,7 +17,7 @@ const config: Config = {
     '!src/types/**',
     '!src/swagger.ts',
   ],
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
       statements: 80,
       branches: 80,

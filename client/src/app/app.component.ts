@@ -8,18 +8,44 @@ import { AuthService } from './core/services/auth.service';
   standalone: true,
   imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
   template: `
-    <nav *ngIf="auth.isLoggedIn">
-      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-      <a routerLink="/appointments" routerLinkActive="active">Appointments</a>
-      <a routerLink="/health-records" routerLinkActive="active">Health Records</a>
-      <a *ngIf="auth.userRole === 'admin'" routerLink="/admin" routerLinkActive="active">Admin</a>
-      <span class="spacer"></span>
-      <span style="color:#ccd6f6">{{ auth.currentUser()?.first_name }}</span>
-      <button class="btn btn-danger" style="font-size:0.85rem;padding:0.3rem 0.8rem" (click)="auth.logout()">Logout</button>
-    </nav>
-    <router-outlet />
+    <div class="bg-blob bg-blob-1"></div>
+    <div class="bg-blob bg-blob-2"></div>
+    <div class="bg-blob bg-blob-3"></div>
+
+    <div class="app-shell">
+      <nav *ngIf="auth.isLoggedIn">
+        <a routerLink="/dashboard" class="nav-brand">
+          <div class="nav-brand-icon">✚</div>
+          <span class="nav-brand-name">MediCare</span>
+        </a>
+
+        <div class="nav-links">
+          <a routerLink="/dashboard"     routerLinkActive="active" class="nav-link">Dashboard</a>
+          <a routerLink="/appointments"  routerLinkActive="active" class="nav-link">Appointments</a>
+          <a routerLink="/health-records" routerLinkActive="active" class="nav-link">Records</a>
+          <a *ngIf="auth.userRole === 'admin'" routerLink="/admin" routerLinkActive="active" class="nav-link">Admin</a>
+        </div>
+
+        <div class="nav-right">
+          <div class="nav-user">
+            <div class="nav-avatar">{{ initials }}</div>
+            <span class="text-sm text-dim">{{ auth.currentUser()?.first_name }}</span>
+            <span class="badge badge-{{auth.userRole}}">{{ auth.userRole }}</span>
+          </div>
+          <button class="btn btn-danger btn-sm" (click)="auth.logout()">Logout</button>
+        </div>
+      </nav>
+
+      <router-outlet />
+    </div>
   `,
 })
 export class AppComponent {
   constructor(public auth: AuthService) {}
+
+  get initials(): string {
+    const u = this.auth.currentUser();
+    if (!u) return '?';
+    return (u.first_name[0] + (u.last_name[0] ?? '')).toUpperCase();
+  }
 }

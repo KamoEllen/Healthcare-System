@@ -9,43 +9,86 @@ import { AuthService } from '../../core/services/auth.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div style="display:flex;justify-content:center;align-items:center;min-height:100vh">
-      <div class="card" style="width:100%;max-width:440px">
-        <h2 style="margin-bottom:1.5rem">Create Account</h2>
-        <div *ngIf="error" class="error-message" style="margin-bottom:1rem;padding:0.75rem;background:#fef2f2;border-radius:6px">{{error}}</div>
-        <form (ngSubmit)="onSubmit()">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+    <div class="auth-page">
+      <div class="auth-card" style="max-width:480px">
+        <div class="auth-header">
+          <div class="auth-logo">✚</div>
+          <h1>Create Account</h1>
+          <p>Join MediCare as a patient</p>
+        </div>
+
+        <div class="msg msg-error"   *ngIf="error">{{ error }}</div>
+        <div class="msg msg-success" *ngIf="success">{{ success }}</div>
+
+        <form (ngSubmit)="onSubmit()" *ngIf="!success">
+          <div class="form-grid-2">
             <div class="form-group">
-              <label>First Name</label>
-              <input [(ngModel)]="form.first_name" name="first_name" required />
+              <label>First name</label>
+              <input [(ngModel)]="form.first_name" name="first_name" required placeholder="Jane" />
             </div>
             <div class="form-group">
-              <label>Last Name</label>
-              <input [(ngModel)]="form.last_name" name="last_name" required />
+              <label>Last name</label>
+              <input [(ngModel)]="form.last_name" name="last_name" required placeholder="Smith" />
             </div>
           </div>
+
           <div class="form-group">
-            <label>Email</label>
-            <input type="email" [(ngModel)]="form.email" name="email" required />
+            <label>Email address</label>
+            <input type="email" [(ngModel)]="form.email" name="email" required
+                   placeholder="jane@example.com" autocomplete="email" />
           </div>
+
           <div class="form-group">
             <label>Password</label>
-            <input type="password" [(ngModel)]="form.password" name="password" required placeholder="Min 8 chars, uppercase, digit, special" />
+            <input type="password" [(ngModel)]="form.password" name="password" required
+                   placeholder="Min 8 chars, uppercase, digit, special" autocomplete="new-password" />
           </div>
-          <button class="btn btn-primary" type="submit" style="width:100%" [disabled]="loading">
-            {{ loading ? 'Creating account...' : 'Register' }}
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Date of birth <span class="text-muted">(optional)</span></label>
+              <input type="date" [(ngModel)]="form.date_of_birth" name="date_of_birth" />
+            </div>
+            <div class="form-group">
+              <label>Gender <span class="text-muted">(optional)</span></label>
+              <select [(ngModel)]="form.gender" name="gender">
+                <option value="">Select…</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Blood type <span class="text-muted">(optional)</span></label>
+            <select [(ngModel)]="form.blood_type" name="blood_type">
+              <option value="">Unknown</option>
+              <option *ngFor="let b of bloodTypes" [value]="b">{{ b }}</option>
+            </select>
+          </div>
+
+          <button class="btn btn-primary btn-block mt-2" type="submit" [disabled]="loading">
+            <span class="spinner" *ngIf="loading"></span>
+            {{ loading ? 'Creating account…' : 'Create account' }}
           </button>
         </form>
-        <p style="margin-top:1rem;text-align:center">
-          Have an account? <a routerLink="/login">Login</a>
-        </p>
+
+        <div class="auth-footer">
+          Already have an account? <a routerLink="/login">Sign in</a>
+        </div>
       </div>
     </div>
   `,
 })
 export class RegisterComponent {
-  form = { email: '', password: '', first_name: '', last_name: '' };
-  error = '';
+  form = {
+    email: '', password: '', first_name: '', last_name: '',
+    date_of_birth: '', gender: '', blood_type: '',
+  };
+  bloodTypes = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+  error   = '';
+  success = '';
   loading = false;
 
   constructor(private auth: AuthService, private router: Router) {}
@@ -53,8 +96,22 @@ export class RegisterComponent {
   onSubmit(): void {
     this.loading = true;
     this.error = '';
-    this.auth.register(this.form).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
+    const payload: Record<string, unknown> = {
+      email: this.form.email,
+      password: this.form.password,
+      first_name: this.form.first_name,
+      last_name: this.form.last_name,
+    };
+    if (this.form.date_of_birth) payload['date_of_birth'] = this.form.date_of_birth;
+    if (this.form.gender)        payload['gender']        = this.form.gender;
+    if (this.form.blood_type)    payload['blood_type']    = this.form.blood_type;
+
+    this.auth.register(payload).subscribe({
+      next: () => {
+        this.success = 'Account created! Please sign in.';
+        this.loading = false;
+        setTimeout(() => this.router.navigate(['/login']), 1500);
+      },
       error: (err) => {
         this.error = err.error?.message ?? 'Registration failed';
         this.loading = false;

@@ -9,26 +9,44 @@ import { AuthService } from '../../core/services/auth.service';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div style="display:flex;justify-content:center;align-items:center;min-height:100vh">
-      <div class="card" style="width:100%;max-width:400px">
-        <h2 style="margin-bottom:1.5rem">Healthcare Login</h2>
-        <div *ngIf="error" class="error-message" style="margin-bottom:1rem;padding:0.75rem;background:#fef2f2;border-radius:6px">{{error}}</div>
-        <form (ngSubmit)="onSubmit()">
+    <div class="auth-page">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div class="auth-logo">✚</div>
+          <h1>MediCare</h1>
+          <p>Sign in to your account</p>
+        </div>
+
+        <div class="msg msg-error" *ngIf="error">{{ error }}</div>
+
+        <form (ngSubmit)="onSubmit()" #f="ngForm">
           <div class="form-group">
-            <label>Email</label>
-            <input type="email" [(ngModel)]="email" name="email" required placeholder="you@example.com" />
+            <label>Email address</label>
+            <input type="email" [(ngModel)]="email" name="email" required
+                   placeholder="you@example.com" autocomplete="email" />
           </div>
           <div class="form-group">
             <label>Password</label>
-            <input type="password" [(ngModel)]="password" name="password" required />
+            <div style="position:relative">
+              <input [type]="showPw ? 'text' : 'password'" [(ngModel)]="password"
+                     name="password" required autocomplete="current-password"
+                     placeholder="••••••••" style="padding-right:2.8rem" />
+              <button type="button" (click)="showPw = !showPw"
+                      style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:0.85rem;padding:0">
+                {{ showPw ? 'hide' : 'show' }}
+              </button>
+            </div>
           </div>
-          <button class="btn btn-primary" type="submit" style="width:100%" [disabled]="loading">
-            {{ loading ? 'Logging in...' : 'Login' }}
+
+          <button class="btn btn-primary btn-block mt-2" type="submit" [disabled]="loading">
+            <span class="spinner" *ngIf="loading"></span>
+            {{ loading ? 'Signing in…' : 'Sign in' }}
           </button>
         </form>
-        <p style="margin-top:1rem;text-align:center">
-          No account? <a routerLink="/register">Register</a>
-        </p>
+
+        <div class="auth-footer">
+          No account? <a routerLink="/register">Create one</a>
+        </div>
       </div>
     </div>
   `,
@@ -38,16 +56,18 @@ export class LoginComponent {
   password = '';
   error = '';
   loading = false;
+  showPw = false;
 
   constructor(private auth: AuthService, private router: Router) {}
 
   onSubmit(): void {
+    if (!this.email || !this.password) return;
     this.loading = true;
     this.error = '';
     this.auth.login(this.email, this.password).subscribe({
       next: () => this.router.navigate(['/dashboard']),
       error: (err) => {
-        this.error = err.error?.message ?? 'Login failed';
+        this.error = err.error?.message ?? 'Login failed. Check your credentials.';
         this.loading = false;
       },
     });

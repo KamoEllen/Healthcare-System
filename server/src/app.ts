@@ -9,6 +9,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { apiRateLimiter } from './middleware/rateLimiter';
 import { checkConnection } from './database';
 
+import { registerSwagger } from './swagger';
 import { authRouter } from './modules/auth/auth.router';
 import { usersRouter } from './modules/users/users.router';
 import { patientsRouter } from './modules/patients/patients.router';
@@ -59,6 +60,9 @@ app.use('/api/v1/patients', patientsRouter);
 app.use('/api/v1/doctors', doctorsRouter);
 app.use('/api/v1/appointments', appointmentsRouter);
 app.use('/api/v1/health-records', healthRecordsRouter);
+
+// Swagger UI
+registerSwagger(app);
 
 // 404
 app.use((_req, res) => {

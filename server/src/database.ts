@@ -13,12 +13,12 @@ pool.on('error', (err) => {
   console.error('Unexpected PostgreSQL pool error:', err);
 });
 
-export async function query<T = Record<string, unknown>>(
+export async function query<T = any>(
   text: string,
   params?: unknown[]
-): Promise<QueryResult<T>> {
+): Promise<QueryResult<any>> {
   const start = Date.now();
-  const result = await pool.query<T>(text, params);
+  const result = await pool.query(text, params);
   const duration = Date.now() - start;
   if (duration > 1000) {
     console.warn('Slow query detected:', { text, duration, rows: result.rowCount });

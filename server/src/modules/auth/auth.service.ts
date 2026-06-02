@@ -22,7 +22,7 @@ function generateRawToken(): string {
 
 function signAccessToken(user: UserRow): string {
   const payload: JwtPayload = { id: user.id, email: user.email, role: user.role };
-  return jwt.sign(payload, config.JWT_SECRET, { expiresIn: config.JWT_EXPIRES_IN as string });
+  return jwt.sign(payload, config.JWT_SECRET, { expiresIn: config.JWT_EXPIRES_IN } as any);
 }
 
 function refreshTokenExpiry(): Date {

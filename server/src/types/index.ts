@@ -47,7 +47,9 @@ export class AppError extends Error {
     this.statusCode = statusCode;
     this.isOperational = true;
     Object.setPrototypeOf(this, AppError.prototype);
-    Error.captureStackTrace(this, this.constructor);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, this.constructor);
+    }
   }
 }
 

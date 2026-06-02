@@ -3,8 +3,8 @@ services:
     name: healthcare-api
     env: node
     plan: free
-    buildCommand: npm ci && npm run build
-    startCommand: node dist/server.js
+    buildCommand: cd server && npm ci && npm run build
+    startCommand: node server/dist/server.js
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
@@ -24,13 +24,13 @@ services:
       - key: EMAIL_PROVIDER
         value: mailtrap
       - key: EMAIL_USER
-        value: ""  
+        value: ""  # Add your Mailtrap username
       - key: EMAIL_PASS
-        value: ""  
+        value: ""  # Add your Mailtrap API key
       - key: EMAIL_FROM
         value: noreply@healthcare.dev
       - key: CORS_ORIGIN
-        value: ""  
+        value: ""  # Will be set to your frontend URL after deployment
       - key: RATE_LIMIT_AUTH_MAX
         value: "10"
       - key: RATE_LIMIT_API_MAX

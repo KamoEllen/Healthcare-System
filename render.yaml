@@ -24,13 +24,13 @@ services:
       - key: EMAIL_PROVIDER
         value: mailtrap
       - key: EMAIL_USER
-        value: ""  # Add your Mailtrap username
+        sync: false
       - key: EMAIL_PASS
-        value: ""  # Add your Mailtrap API key
+        sync: false
       - key: EMAIL_FROM
         value: noreply@healthcare.dev
       - key: CORS_ORIGIN
-        value: ""  # Will be set to your frontend URL after deployment
+        sync: false
       - key: RATE_LIMIT_AUTH_MAX
         value: "10"
       - key: RATE_LIMIT_API_MAX

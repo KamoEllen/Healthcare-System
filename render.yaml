@@ -3,7 +3,7 @@ services:
     name: healthcare-api
     env: node
     plan: free
-    buildCommand: cd server && npm ci && npm run build
+    buildCommand: cd server && npm ci --include=dev && npm run build
     startCommand: node server/dist/server.js
     healthCheckPath: /api/v1/health
     envVars:

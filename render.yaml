@@ -39,4 +39,5 @@ services:
 databases:
   - name: healthcare-db
     plan: free
-    postgresVersion: "15"
+    databaseName: healthcare_db
+    user: healthcare_user

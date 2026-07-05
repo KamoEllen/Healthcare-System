@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Healthcare System — Code-Anchored Walkthrough</title>
+<style>
+  :root{
+    --bg:#000000;
+    --bg2:#0a0a0a;
+    --panel:#0d0d0d;
+    --code-bg:#0b0b0b;
+    --text:#f4f4f5;
+    --muted:#a1a1aa;
+    --red:#5e1414;
+    --red-soft:rgba(94,20,20,.28);
+    --red-line:#7a1c1c;
+    --green:#4ade80;
+    --green-soft:rgba(74,222,128,.10);
+    --green-dim:#7bbfa0;
+    --mono:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:var(--sans);font-size:16px;line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--green);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ---- layout ---- */
+  .shell{display:flex;min-height:100vh}
+  nav.toc{
+    width:280px;flex:0 0 280px;position:sticky;top:0;align-self:flex-start;
+    height:100vh;overflow-y:auto;background:var(--bg2);
+    border-right:1px solid var(--red);padding:26px 18px 60px;
+  }
+  nav.toc h2{
+    font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--green);margin:0 0 4px;font-weight:700;
+  }
+  nav.toc .sub{color:var(--muted);font-size:12px;margin:0 0 20px}
+  nav.toc ol{list-style:none;margin:0;padding:0;counter-reset:sec}
+  nav.toc ol li{counter-increment:sec;margin:1px 0}
+  nav.toc ol li a{
+    display:block;color:var(--muted);font-size:13.5px;padding:5px 10px;
+    border-radius:6px;border-left:2px solid transparent;line-height:1.35;
+  }
+  nav.toc ol li a::before{content:counter(sec) ".";color:var(--red-line);margin-right:8px;font-variant-numeric:tabular-nums}
+  nav.toc ol li a:hover{background:var(--red-soft);color:var(--text);text-decoration:none}
+  nav.toc ol li a.active{color:var(--green);border-left-color:var(--green);background:var(--green-soft)}
+
+  main{flex:1 1 auto;min-width:0;padding:0 0 120px}
+  .wrap{max-width:860px;margin:0 auto;padding:0 32px}
+
+  /* ---- masthead ---- */
+  header.hero{
+    background:
+      radial-gradient(1200px 400px at 20% -10%,var(--red-soft),transparent 70%),
+      var(--bg2);
+    border-bottom:1px solid var(--red);
+    padding:56px 0 40px;margin-bottom:44px;
+  }
+  header.hero .kicker{color:var(--green);letter-spacing:.2em;text-transform:uppercase;font-size:12px;font-weight:700}
+  header.hero h1{font-size:38px;line-height:1.1;margin:12px 0 14px;font-weight:800;letter-spacing:-.02em}
+  header.hero p{color:var(--muted);max-width:660px;margin:0}
+  header.hero .tags{margin-top:22px;display:flex;flex-wrap:wrap;gap:8px}
+  .tag{font-family:var(--mono);font-size:12px;padding:4px 10px;border:1px solid var(--red-line);border-radius:999px;color:var(--text);background:var(--red-soft)}
+
+  /* ---- sections ---- */
+  section{margin:0 0 60px;scroll-margin-top:20px}
+  section > h2{
+    font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--green);
+    margin:0 0 6px;font-weight:700;
+  }
+  section > h2 .n{color:var(--red-line);margin-right:10px}
+  section h3.title{font-size:27px;margin:0 0 18px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+  h4{font-size:18px;margin:32px 0 10px;color:var(--text);font-weight:700}
+  h4 .path{font-family:var(--mono);font-size:14px;color:var(--green-dim);font-weight:500}
+  p{margin:0 0 16px}
+  .lead{font-size:18px;color:var(--text)}
+  strong{color:#fff}
+  em.k{color:var(--green);font-style:normal;font-weight:600}
+  hr{border:0;border-top:1px solid #1c1c1c;margin:44px 0}
+
+  ul,ol.list{margin:0 0 18px;padding-left:22px}
+  ul li,ol.list li{margin:7px 0}
+  ul li::marker{color:var(--red-line)}
+
+  code.inl{font-family:var(--mono);font-size:13.5px;background:var(--green-soft);color:var(--green);padding:1px 6px;border-radius:5px;border:1px solid rgba(74,222,128,.18)}
+
+  /* ---- code cards ---- */
+  figure.code{margin:20px 0;border:1px solid var(--red);border-radius:10px;overflow:hidden;background:var(--code-bg)}
+  .code-head{display:flex;align-items:center;gap:10px;background:var(--bg2);border-bottom:1px solid var(--red);padding:9px 14px}
+  .code-head .dot{width:10px;height:10px;border-radius:50%;background:var(--red-line);flex:0 0 auto;box-shadow:0 0 0 3px var(--red-soft)}
+  .code-head .file{font-family:var(--mono);font-size:12.5px;color:var(--text)}
+  .code-head .lang{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--green);text-transform:uppercase;letter-spacing:.08em}
+  figure.code pre{margin:0;padding:16px 18px;overflow-x:auto}
+  figure.code code{font-family:var(--mono);font-size:13px;line-height:1.65;color:#e4e4e7;white-space:pre}
+  .cm{color:var(--green-dim);font-style:italic}
+
+  /* ---- callouts ---- */
+  .box{border-left:3px solid;border-radius:0 8px 8px 0;padding:12px 16px;margin:18px 0;background:var(--panel)}
+  .box .lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;display:block;margin-bottom:4px}
+  .box p{margin:0}
+  .box.why{border-color:var(--green);background:var(--green-soft)}
+  .box.why .lbl{color:var(--green)}
+  .box.tell{border-color:var(--green);background:transparent}
+  .box.tell .lbl{color:var(--green)}
+  .box.warn{border-color:var(--red-line);background:var(--red-soft)}
+  .box.warn .lbl{color:#e5808a}
+  .box.drift{border-color:var(--red-line);background:var(--red-soft)}
+  .box.drift .lbl{color:#e5808a}
+
+  /* ---- tables ---- */
+  .tblwrap{overflow-x:auto;margin:18px 0;border:1px solid #1c1c1c;border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+  th,td{text-align:left;padding:10px 14px;border-bottom:1px solid #1a1a1a;vertical-align:top}
+  th{background:var(--red);color:#fff;font-weight:700;font-size:12px;letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--red-line)}
+  tr:last-child td{border-bottom:0}
+  td code,th code{font-family:var(--mono);font-size:12.5px;color:var(--green)}
+  td.mono{font-family:var(--mono);font-size:12.5px;color:var(--green-dim)}
+
+  /* ---- flow chips ---- */
+  .flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:18px 0;font-family:var(--mono);font-size:12.5px}
+  .flow .step{padding:5px 11px;border:1px solid var(--red-line);border-radius:6px;background:var(--red-soft);color:var(--text)}
+  .flow .step.g{border-color:var(--green);background:var(--green-soft);color:var(--green)}
+  .flow .arr{color:var(--red-line)}
+
+  .foot{border-top:1px solid var(--red);margin-top:70px;padding:26px 0;color:var(--muted);font-size:13px}
+
+  @media(max-width:960px){
+    nav.toc{display:none}
+    header.hero h1{font-size:30px}
+    .wrap{padding:0 20px}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="toc" id="toc">
+    <h2>Walkthrough</h2>
+    <p class="sub">Every claim pinned to real code. Open any file &rarr; find it here.</p>
+    <ol id="tocList">
+      <li><a href="#use">How to read this document</a></li>
+      <li><a href="#model">The 60-second mental model</a></li>
+      <li><a href="#map">Where everything lives</a></li>
+      <li><a href="#pattern">The pattern stamped 6 times</a></li>
+      <li><a href="#trace-req">Trace A &mdash; a request, end to end</a></li>
+      <li><a href="#trace-bff">Trace B &mdash; the BFF / how <code>/api</code> reaches the backend</a></li>
+      <li><a href="#trace-audit">Trace C &mdash; the atomic audit write</a></li>
+      <li><a href="#trace-token">Trace D &mdash; the token lifecycle</a></li>
+      <li><a href="#middleware">The cross-cutting guards &amp; middleware order</a></li>
+      <li><a href="#rules">The rules that make it <em>healthcare</em></a></li>
+      <li><a href="#db">The database &amp; migrations</a></li>
+      <li><a href="#deploy">Deployment, tiers &amp; CI</a></li>
+      <li><a href="#why">The trade-off ledger (why X over Y)</a></li>
+      <li><a href="#drift">Where the docs disagree with the code</a></li>
+      <li><a href="#index">Reverse index &mdash; open any file</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div class="wrap">
+        <div class="kicker">Healthcare Management System</div>
+        <h1>The Code-Anchored Walkthrough</h1>
+        <p>A file-by-file explanation of how this system actually works &mdash; the request flow, the repeating patterns, the invisible glue, and every &ldquo;why this over that.&rdquo; Written so someone who never wrote a line of it can be dropped on any file and explain it.</p>
+        <div class="tags">
+          <span class="tag">Node 20 + Express</span>
+          <span class="tag">TypeScript strict</span>
+          <span class="tag">PostgreSQL (raw SQL)</span>
+          <span class="tag">Zod</span>
+          <span class="tag">JWT + refresh rotation</span>
+          <span class="tag">Angular 19</span>
+          <span class="tag">Docker / K8s / Terraform</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="wrap">
+
+    <!-- ============================================================= -->
+    <section id="use">
+      <h2><span class="n">00</span>Orientation</h2>
+      <h3 class="title">How to read this document</h3>
+      <p class="lead">This is not a summary. It is a map you can read <em class="k">alongside the open files</em>.</p>
+      <p>The existing <code class="inl">Healthcare-System.md</code> is ~8,700 words and topic-complete, but it explains the system in the abstract and never shows code &mdash; so when you open a real file, the prose and the file don't line up, and the <strong>invisible behaviours</strong> (the ones that live in no single file) get skipped entirely. This document fixes both problems:</p>
+      <ul>
+        <li><strong>Every claim is anchored to the real code</strong>, pasted from the actual file with its path in the header bar.</li>
+        <li>It is organised around <strong>journeys and behaviours</strong>, not a component inventory &mdash; because the things that confuse a newcomer (like &ldquo;how does the browser's <code class="inl">/api</code> call physically reach the backend?&rdquo;) are emergent, spanning several files that never reference each other.</li>
+        <li>The four <strong>Traces</strong> (sections 5&ndash;8) are the heart. If you can replay them, you can place any file on a journey &mdash; and placing a file <em class="k">is</em> explaining it.</li>
+        <li>Section 15 is a <strong>reverse index</strong>: pick any file in the repo, find the section that explains it. Nothing is left un-covered.</li>
+      </ul>
+      <div class="box tell">
+        <span class="lbl">The one idea that makes this learnable</span>
+        <p>The backend looks big (~40 files) but it is <strong>one 5-file template stamped 6 times</strong>, plus a handful of one-of-a-kind files. Learn the template once (section 4) and you already understand 30 files. Everything else is either a cross-cutting guard, a domain rule, or a named special.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="model">
+      <h2><span class="n">01</span>Mental Model</h2>
+      <h3 class="title">The 60-second mental model</h3>
+      <p>Two programs talk over HTTP:</p>
+      <ul>
+        <li>An <strong>Angular 19 single-page app</strong> (the <code class="inl">client/</code> folder) that runs in the browser. It never talks to a database. It calls a relative URL, <code class="inl">/api/v1/&hellip;</code>, and attaches a short-lived access token to every request.</li>
+        <li>An <strong>Express REST API</strong> (the <code class="inl">server/</code> folder) that owns all business logic and is the only thing that touches PostgreSQL &mdash; through hand-written SQL, no ORM.</li>
+      </ul>
+      <p>Every API request walks the same straight line. No layer skips another:</p>
+      <div class="flow">
+        <span class="step">router</span><span class="arr">&rarr;</span>
+        <span class="step g">authenticate</span><span class="arr">&rarr;</span>
+        <span class="step g">authorize</span><span class="arr">&rarr;</span>
+        <span class="step g">validate&nbsp;(Zod)</span><span class="arr">&rarr;</span>
+        <span class="step">controller</span><span class="arr">&rarr;</span>
+        <span class="step">service</span><span class="arr">&rarr;</span>
+        <span class="step">repository</span><span class="arr">&rarr;</span>
+        <span class="step">SQL</span>
+      </div>
+      <p>Three organising ideas carry the whole codebase, and everything below is a consequence of one of them:</p>
+      <ol class="list">
+        <li><strong>Strict layering.</strong> Controllers touch <code class="inl">req</code>/<code class="inl">res</code> and nothing else; services hold the rules and throw <code class="inl">AppError</code>; repositories hold SQL and no logic.</li>
+        <li><strong>Every important change is audited in the same transaction it belongs to.</strong> If the audit write fails, the business write rolls back with it. This is the system's whole identity.</li>
+        <li><strong>Configuration, not code, chooses the environment.</strong> Change two env vars and the same binary runs on your laptop, on free-tier cloud, or on AWS &mdash; no code edits.</li>
+      </ol>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="map">
+      <h2><span class="n">02</span>The Map</h2>
+      <h3 class="title">Where everything lives</h3>
+      <p>Before any detail, this table answers every &ldquo;where is X?&rdquo; question. The backend is organised <strong>by feature</strong> (<code class="inl">modules/&lt;name&gt;/</code>), not by technical layer &mdash; each module carries its own five files.</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>Location</th><th>What's there</th><th>You open this when&hellip;</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">server/src/app.ts</td><td>Express assembly: middleware order, route mounting, 404 &amp; error handler</td><td>a request behaves oddly before it reaches a route</td></tr>
+            <tr><td class="mono">server/src/server.ts</td><td>Boots the HTTP listener, graceful shutdown on SIGTERM</td><td>startup / shutdown behaviour</td></tr>
+            <tr><td class="mono">server/src/config.ts</td><td>Zod-validated env vars; email-provider switch</td><td>&ldquo;where does this setting come from?&rdquo;</td></tr>
+            <tr><td class="mono">server/src/database.ts</td><td>The single <code>pg</code> pool + <code>query()</code> / <code>getClient()</code> helpers</td><td>anything touching SQL or transactions</td></tr>
+            <tr><td class="mono">server/src/modules/&lt;x&gt;/</td><td>The 6 features: <code>auth users patients doctors appointments health-records</code> &mdash; each with router / controller / service / repository / schemas</td><td>any business feature</td></tr>
+            <tr><td class="mono">server/src/middleware/</td><td>The cross-cutting guards: authenticate, authorize, isOwner, validate, rateLimiter, errorHandler, catchAsync</td><td>auth, permissions, validation, error shape</td></tr>
+            <tr><td class="mono">server/src/migrations/</td><td>Numbered <code>.sql</code> files + an idempotent runner</td><td>the database schema &amp; indexes</td></tr>
+            <tr><td class="mono">server/src/types/index.ts</td><td>Shared types, DB row shapes, and the <code>AppError</code> class</td><td>&ldquo;what shape is this object?&rdquo;</td></tr>
+            <tr><td class="mono">client/src/app/core/</td><td>The frontend plumbing: <code>auth.service</code>, the HTTP <code>interceptor</code>, route <code>guards</code></td><td>the login / token / routing glue</td></tr>
+            <tr><td class="mono">client/src/app/features/</td><td>One standalone component per page (login, dashboard, appointments&hellip;)</td><td>a specific screen</td></tr>
+            <tr><td class="mono">client/src/proxy.conf.json &middot; vercel.json</td><td>The dev proxy and the prod rewrite &mdash; the &ldquo;BFF&rdquo; seam (section 6)</td><td>&ldquo;how does <code>/api</code> reach the server?&rdquo;</td></tr>
+            <tr><td class="mono">infra/ &middot; docker-compose.yml</td><td>Dockerfile, K8s manifests, Terraform, local compose stack</td><td>deployment</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="pattern">
+      <h2><span class="n">03</span>The Repeating Shape</h2>
+      <h3 class="title">The pattern stamped 6 times</h3>
+      <p>Every feature module is the exact same five files. Learn the roles once and you can predict what any file in <code class="inl">appointments/</code>, <code class="inl">doctors/</code>, <code class="inl">patients/</code>, <code class="inl">users/</code>, <code class="inl">health-records/</code> or <code class="inl">auth/</code> contains before opening it.</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>File</th><th>Its one job</th><th>The tell &mdash; how you know the layer with the filename hidden</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">*.router.ts</td><td>Declare paths + which guards protect them</td><td>calls <code>.get/.post/.patch</code>, wires <code>authenticate, authorize, validate</code></td></tr>
+            <tr><td class="mono">*.controller.ts</td><td>Unwrap <code>req</code>, call the service, send <code>res</code></td><td>touches <code>req</code>/<code>res</code>; wrapped in <code>catchAsync</code>; <em>no SQL, no rules</em></td></tr>
+            <tr><td class="mono">*.service.ts</td><td>Business rules, ownership checks, throws <code>AppError</code></td><td>throws <code>AppError</code>; never sees <code>req</code>/<code>res</code>; calls repositories</td></tr>
+            <tr><td class="mono">*.repository.ts</td><td>All SQL, parameterised; returns rows</td><td>only SQL strings + <code>query()</code>/<code>getClient()</code>; throws no business errors</td></tr>
+            <tr><td class="mono">*.schemas.ts</td><td>Zod shapes for the request body + inferred DTO types</td><td>starts with <code>z.object(&hellip;)</code>; exports <code>z.infer</code> types</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Here is the <strong>same slice of one module</strong>, top to bottom, so the chain is concrete. Notice how each file hands off to the next and refuses to do the next one's job.</p>
+
+      <h4>1 &mdash; The router <span class="path">server/src/modules/health-records/health-records.router.ts</span></h4>
+      <script type="text/plain" class="src" data-file="health-records.router.ts" data-lang="TypeScript">
+import { Router } from 'express';
+import { healthRecordsController } from './health-records.controller';
+import { authenticate } from '../../middleware/authenticate';
+import { authorize } from '../../middleware/authorize';
+import { validate } from '../../middleware/validate';
+import { CreateHealthRecordSchema, UpdateHealthRecordSchema } from './health-records.schemas';
+
+export const healthRecordsRouter = Router();
+
+healthRecordsRouter.use(authenticate);   // every route below requires a valid JWT
+
+healthRecordsRouter.get('/',      authorize('admin','doctor','patient'),                        healthRecordsController.list);
+healthRecordsRouter.get('/:id',   authorize('admin','doctor','patient'),                        healthRecordsController.getOne);
+healthRecordsRouter.post('/',     authorize('doctor'), validate(CreateHealthRecordSchema),      healthRecordsController.create);
+healthRecordsRouter.patch('/:id', authorize('doctor'), validate(UpdateHealthRecordSchema),      healthRecordsController.update);
+</script>
+      <div class="box tell">
+        <span class="lbl">Read a router like a permission table</span>
+        <p>Each line is &ldquo;method + path + who's allowed + what's validated + the handler.&rdquo; You can see at a glance that <strong>only doctors create records</strong>, everyone authenticated can read, and writes are Zod-validated. <code class="inl">router.use(authenticate)</code> at the top means no route is reachable without a token.</p>
+      </div>
+
+      <h4>2 &mdash; The controller <span class="path">health-records.controller.ts</span></h4>
+      <script type="text/plain" class="src" data-file="health-records.controller.ts" data-lang="TypeScript">
+export const healthRecordsController = {
+  create: catchAsync(async (req: Request, res: Response) => {
+    const user   = (req as AuthenticatedRequest).user;      // put here by authenticate
+    const record = await healthRecordsService.createRecord(req.body, user);
+    res.status(201).json({ status: 'success', data: record });
+  }),
+
+  list: catchAsync(async (req: Request, res: Response) => {
+    const user   = (req as AuthenticatedRequest).user;
+    const limit  = Math.min(parseInt(req.query.limit as string ?? '20', 10), 100);   // cap page size
+    const offset = parseInt(req.query.offset as string ?? '0', 10);
+    const { rows, total } = await healthRecordsService.listRecords(user, limit, offset);
+    res.json({ status:'success', data:rows, meta:{ total, limit, offset, pages: Math.ceil(total/limit) } });
+  }),
+};
+</script>
+      <div class="box why">
+        <span class="lbl">Why the controller is this thin</span>
+        <p>It only translates HTTP &harr; function call: pull <code class="inl">user</code>, <code class="inl">body</code>, query params off <code class="inl">req</code>, hand them to the service, shape the JSON envelope. No <code class="inl">if</code> about permissions, no SQL. That thinness is what lets you skim a controller and instantly know &ldquo;the real logic is one file over, in the service.&rdquo;</p>
+      </div>
+
+      <h4>3 &mdash; The service (where the rules live) <span class="path">health-records.service.ts</span></h4>
+      <script type="text/plain" class="src" data-file="health-records.service.ts" data-lang="TypeScript">
+const EDIT_WINDOW_HOURS = 24;
+
+async updateRecord(id: string, dto: UpdateHealthRecordDto, requester: AuthenticatedRequest['user']) {
+  const record = await healthRecordsRepository.findById(id);
+  if (!record) throw new AppError('Health record not found', 404);
+
+  const doctor = await doctorsRepository.findByUserId(requester.id);
+  if (!doctor || record.doctor_id !== doctor.id) {          // ownership: only the authoring doctor
+    throw new AppError('Insufficient permissions', 403);
+  }
+
+  const ageHours = (Date.now() - new Date(record.created_at).getTime()) / 3_600_000;
+  if (ageHours > EDIT_WINDOW_HOURS) {                        // the 24-hour immutability rule
+    throw new AppError('Health records can only be edited within 24 hours of creation', 403);
+  }
+
+  return healthRecordsRepository.update(id, dto);
+}
+</script>
+      <div class="box tell">
+        <span class="lbl">The service is the only file that says &ldquo;no&rdquo;</span>
+        <p>Two rules live here that exist nowhere else: <strong>only the doctor who wrote a record may edit it</strong>, and <strong>records freeze 24 hours after creation</strong>. Both are expressed as <code class="inl">throw new AppError(&hellip;, 403)</code>. When you want to know &ldquo;what are the rules of this feature,&rdquo; the service is the file you read &mdash; never the controller, never the repository.</p>
+      </div>
+
+      <h4>4 &mdash; The repository (SQL only) <span class="path">health-records.repository.ts</span></h4>
+      <script type="text/plain" class="src" data-file="health-records.repository.ts" data-lang="TypeScript">
+const SELECT_HR = `
+  SELECT
+    hr.id, hr.patient_id, hr.doctor_id,
+    pu.first_name AS patient_first_name, pu.last_name AS patient_last_name,
+    du.first_name AS doctor_first_name,  du.last_name AS doctor_last_name,
+    hr.diagnosis, hr.prescription, hr.notes, hr.recorded_at, hr.created_at, hr.updated_at
+  FROM health_records hr
+  JOIN patients p  ON p.id  = hr.patient_id
+  JOIN users pu    ON pu.id = p.user_id
+  JOIN doctors d   ON d.id  = hr.doctor_id
+  JOIN users du    ON du.id = d.user_id
+`;
+
+async findById(id: string): Promise<HealthRecordWithDetails | null> {
+  const result = await query<HealthRecordWithDetails>(`${SELECT_HR} WHERE hr.id = $1`, [id]);
+  return result.rows[0] ?? null;
+}
+</script>
+      <div class="box why">
+        <span class="lbl">Why raw SQL, and why the 4-table JOIN is a feature</span>
+        <p>A health record stores only <code class="inl">patient_id</code> and <code class="inl">doctor_id</code>. To show human names the query joins <code class="inl">patients &rarr; users</code> and <code class="inl">doctors &rarr; users</code> (both people are <code class="inl">users</code>). With an ORM this JOIN would be hidden behind lazy relations; here it is on screen, one query, tunable. Every value is passed as <code class="inl">$1</code> parameters &mdash; never string-concatenated &mdash; which is the project's SQL-injection defence.</p>
+      </div>
+
+      <h4>5 &mdash; The schema (the request contract) <span class="path">appointments.schemas.ts</span></h4>
+      <script type="text/plain" class="src" data-file="appointments.schemas.ts" data-lang="TypeScript">
+import { z } from 'zod';
+
+export const CreateAppointmentSchema = z.object({
+  doctor_id:    z.string().uuid(),
+  scheduled_at: z.string().datetime({ offset: true }),
+  notes:        z.string().max(1000).optional(),
+});
+
+export type CreateAppointmentDto = z.infer<typeof CreateAppointmentSchema>;   // one source of truth
+</script>
+      <div class="box why">
+        <span class="lbl">Why Zod: one declaration, two guarantees</span>
+        <p>The same <code class="inl">z.object</code> is used by the <code class="inl">validate()</code> middleware at runtime <em>and</em> produces the TypeScript type via <code class="inl">z.infer</code>. You can't let the runtime check and the compile-time type drift apart, because they're generated from the same line.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="trace-req">
+      <h2><span class="n">04</span>Trace A</h2>
+      <h3 class="title">A request, end to end &mdash; booking an appointment</h3>
+      <p>Follow one real call, <code class="inl">POST /api/v1/appointments</code>, through every file it touches. If you can narrate this, you can locate any backend file on the journey.</p>
+      <div class="flow">
+        <span class="step">app.ts mounts router</span><span class="arr">&rarr;</span>
+        <span class="step g">authenticate</span><span class="arr">&rarr;</span>
+        <span class="step g">authorize('patient','admin')</span><span class="arr">&rarr;</span>
+        <span class="step g">validate</span><span class="arr">&rarr;</span>
+        <span class="step">controller.book</span><span class="arr">&rarr;</span>
+        <span class="step">service.bookAppointment</span><span class="arr">&rarr;</span>
+        <span class="step">repository.create</span>
+      </div>
+
+      <h4>Step 0 &mdash; the router says who may book <span class="path">appointments.router.ts</span></h4>
+      <script type="text/plain" class="src" data-file="appointments.router.ts" data-lang="TypeScript">
+appointmentsRouter.use(authenticate);
+
+appointmentsRouter.post('/', authorize('patient','admin'), validate(CreateAppointmentSchema), appointmentsController.book);
+appointmentsRouter.patch('/:id/status', authorize('doctor','admin'), validate(UpdateAppointmentStatusSchema), appointmentsController.updateStatus);
+appointmentsRouter.delete('/:id', authorize('patient','admin'), appointmentsController.cancel);
+</script>
+      <p>Three middlewares run in order before the handler: prove <em>who you are</em> (authenticate), check <em>you're allowed</em> (authorize), check <em>the body is well-formed</em> (validate). Only then does <code class="inl">controller.book</code> run.</p>
+
+      <h4>Step 1 &mdash; the service enforces the real rules <span class="path">appointments.service.ts</span></h4>
+      <script type="text/plain" class="src" data-file="appointments.service.ts" data-lang="TypeScript">
+async bookAppointment(dto: CreateAppointmentDto, requester: AuthenticatedRequest['user']) {
+  const patient = await patientsRepository.findByUserId(requester.id);
+  if (!patient) throw new AppError('Patient profile not found', 404);
+
+  const doctor = await doctorsRepository.findById(dto.doctor_id);
+  if (!doctor) throw new AppError('Doctor not found', 404);
+
+  const slotTaken = await appointmentsRepository.isSlotTaken(dto.doctor_id, dto.scheduled_at);
+  if (slotTaken) throw new AppError('This time slot is already booked', 409);   // first line of defence
+
+  return appointmentsRepository.create(patient.id, dto.doctor_id, dto.scheduled_at, dto.notes);
+}
+</script>
+      <div class="box tell">
+        <span class="lbl">Notice the identity translation</span>
+        <p>The JWT carries a <code class="inl">user.id</code>, but appointments reference a <code class="inl">patient.id</code>. The service bridges the two with <code class="inl">patientsRepository.findByUserId()</code>. This <em>user &rarr; patient/doctor</em> lookup recurs in every service &mdash; it's how the system keeps &ldquo;who is logged in&rdquo; separate from &ldquo;which domain record they own.&rdquo;</p>
+      </div>
+
+      <h4>Step 2 &mdash; the repository writes it <span class="path">appointments.repository.ts</span></h4>
+      <script type="text/plain" class="src" data-file="appointments.repository.ts" data-lang="TypeScript">
+async isSlotTaken(doctorId: string, scheduledAt: string): Promise<boolean> {
+  const result = await query<{ count: string }>(
+    `SELECT COUNT(*) FROM appointments WHERE doctor_id = $1 AND scheduled_at = $2 AND status != 'cancelled'`,
+    [doctorId, scheduledAt]
+  );
+  return parseInt(result.rows[0].count, 10) > 0;
+}
+</script>
+      <div class="box warn">
+        <span class="lbl">The rule has a second, stronger line of defence</span>
+        <p>The <code class="inl">isSlotTaken</code> check can lose a race (two patients booking the same instant). That's why the database also carries a <strong>partial unique index</strong> on <code class="inl">(doctor_id, scheduled_at) WHERE status != 'cancelled'</code> (section 11). If two writes slip past the service check, Postgres rejects the second with error <code class="inl">23505</code>, which the error handler turns into a clean <code class="inl">409</code>. App check for a friendly message, DB constraint for correctness.</p>
+      </div>
+      <p>The return trip is the mirror image: repository returns rows &rarr; service returns the object &rarr; controller wraps it in <code class="inl">{ status:'success', data }</code> and sets <code class="inl">201</code> &rarr; Express serialises JSON. If <em>any</em> step threw an <code class="inl">AppError</code>, <code class="inl">catchAsync</code> forwarded it straight to the error handler (section 9) and none of the later steps ran.</p>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="trace-bff">
+      <h2><span class="n">05</span>Trace B &mdash; the invisible one</h2>
+      <h3 class="title">The &ldquo;BFF&rdquo;: how the browser's <code>/api</code> call reaches the backend</h3>
+      <p>This is the behaviour that no single file explains &mdash; and the one most people miss. The Angular app <strong>never hardcodes the backend's address.</strong> It always calls a <em class="k">relative</em> <code class="inl">/api/v1/&hellip;</code>, and a <strong>different file decides where <code class="inl">/api</code> physically goes depending on the environment.</strong> Three files conspire; none of them import each other.</p>
+
+      <h4>Piece 1 &mdash; the frontend only ever calls a relative path <span class="path">client/src/app/core/services/auth.service.ts</span></h4>
+      <script type="text/plain" class="src" data-file="auth.service.ts" data-lang="TypeScript">
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private readonly API = '/api/v1/auth';   // relative — no http://host anywhere
+  private _accessToken = '';               // kept in memory, NOT localStorage (XSS-resistant)
+
+  login(email: string, password: string) {
+    return this.http.post<LoginResponse>(`${this.API}/login`, { email, password }, { withCredentials: true })
+      .pipe(tap(res => { this._accessToken = res.data.accessToken; this.currentUser.set(res.data.user); }));
+  }
+}
+</script>
+      <div class="box tell">
+        <span class="lbl">Two deliberate choices hiding in four lines</span>
+        <p><code class="inl">API = '/api/v1/auth'</code> is relative, so the same build works in dev and prod. And the access token is stored in a private field <strong>in memory</strong>, not in <code class="inl">localStorage</code> &mdash; so a cross-site-scripting payload can't read it. The trade-off (the token vanishes on page reload) is paid back by the refresh cookie, below.</p>
+      </div>
+
+      <h4>Piece 2a &mdash; in development, the Angular dev server proxies it <span class="path">client/src/proxy.conf.json</span></h4>
+      <script type="text/plain" class="src" data-file="proxy.conf.json" data-lang="JSON">
+{
+  "/api": {
+    "target": "http://localhost:3000",
+    "secure": false,
+    "changeOrigin": true
+  }
+}
+</script>
+      <p>When you run <code class="inl">ng serve</code> (port 4200), any request the browser makes to <code class="inl">/api/&hellip;</code> is caught by the dev server and forwarded to the Express API on <code class="inl">http://localhost:3000</code>. To the browser it looks same-origin, so <strong>there is no CORS in development</strong> and cookies &ldquo;just work.&rdquo;</p>
+
+      <h4>Piece 2b &mdash; in production, Vercel rewrites it at the edge <span class="path">vercel.json</span></h4>
+      <script type="text/plain" class="src" data-file="vercel.json" data-lang="JSON">
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://healthcare-api-xxx.onrender.com/api/:path*" },
+    { "source": "/(.*)",       "destination": "/index.html" }
+  ]
+}
+</script>
+      <div class="box why">
+        <span class="lbl">Same trick, different layer &mdash; this is the &ldquo;backend-for-frontend&rdquo; seam</span>
+        <p>In prod the Angular build is static-hosted on Vercel; the API runs separately on Render. The first rewrite makes Vercel's edge forward <code class="inl">/api/*</code> to the Render backend &mdash; so again the browser only ever calls its own origin. The second rewrite (<code class="inl">/(.*) &rarr; /index.html</code>) is the <strong>SPA fallback</strong>: deep links like <code class="inl">/appointments</code> return the app shell instead of a 404, letting Angular's router take over. Dev uses the proxy, prod uses the rewrite; the frontend code is identical.</p>
+      </div>
+
+      <h4>Piece 3 &mdash; the interceptor is the client half of auth <span class="path">client/src/app/core/interceptors/auth.interceptor.ts</span></h4>
+      <script type="text/plain" class="src" data-file="auth.interceptor.ts" data-lang="TypeScript">
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
+  const authService = inject(AuthService);
+
+  const addToken = (request) =>
+    authService.accessToken
+      ? request.clone({ setHeaders: { Authorization: `Bearer ${authService.accessToken}` } })
+      : request;
+
+  return next(addToken(req)).pipe(
+    catchError((error: HttpErrorResponse) => {
+      if (error.status === 401 && !req.url.includes('/auth/')) {   // access token expired?
+        return authService.refreshToken().pipe(                    // silently mint a new one
+          switchMap(() => next(addToken(req))),                    // ...and REPLAY the original request
+          catchError(err => throwError(() => err))
+        );
+      }
+      return throwError(() => error);
+    })
+  );
+};
+</script>
+      <div class="box tell">
+        <span class="lbl">This is why sessions feel seamless despite 15-minute tokens</span>
+        <p>Registered once in <code class="inl">app.config.ts</code> via <code class="inl">withInterceptors([authInterceptor])</code>, it runs on <em>every</em> outbound HTTP call: it stamps on the <code class="inl">Bearer</code> token, and if the server answers <code class="inl">401</code> (token expired), it calls <code class="inl">/auth/refresh</code>, gets a fresh access token, and <strong>transparently retries the very request that failed</strong> via <code class="inl">switchMap</code>. The user never sees it. The <code class="inl">!req.url.includes('/auth/')</code> guard prevents an infinite refresh loop when it's the login/refresh call itself that 401s.</p>
+      </div>
+      <p>Put together, the full &ldquo;BFF&rdquo; story &mdash; which lives in <em class="k">no single file</em> &mdash; is: <strong>relative <code class="inl">/api</code> call &rarr; environment-specific forwarder (proxy or rewrite) &rarr; Express &rarr; on 401 the interceptor refreshes and replays.</strong> That's the paragraph the old markdown was missing.</p>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="trace-audit">
+      <h2><span class="n">06</span>Trace C &mdash; the crown jewel</h2>
+      <h3 class="title">The atomic audit write</h3>
+      <p>The README's headline claim is &ldquo;every state change is logged atomically &mdash; if the audit log fails, the operation rolls back.&rdquo; Here is exactly where and how that happens.</p>
+      <h4><span class="path">health-records.repository.ts &mdash; create()</span></h4>
+      <script type="text/plain" class="src" data-file="health-records.repository.ts" data-lang="TypeScript">
+async create(patientId, doctorId, actorUserId, diagnosis, prescription?, notes?) {
+  const client = await getClient();        // a dedicated connection, not the shared pool
+  try {
+    await client.query('BEGIN');           // open a transaction
+
+    const result = await client.query(
+      `INSERT INTO health_records (patient_id, doctor_id, diagnosis, prescription, notes)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [patientId, doctorId, diagnosis, prescription ?? null, notes ?? null]
+    );
+    const id = result.rows[0].id;
+
+    await client.query(                    // the audit row, SAME transaction
+      `INSERT INTO audit_logs (user_id, action, resource, resource_id)
+       VALUES ($1, 'health_record.created', 'health_records', $2)`,
+      [actorUserId, id]
+    );
+
+    await client.query('COMMIT');          // both rows, or neither
+    return (await healthRecordsRepository.findById(id))!;
+  } catch (err) {
+    await client.query('ROLLBACK');        // audit failed? the record never existed
+    throw err;
+  } finally {
+    client.release();                      // always hand the connection back
+  }
+}
+</script>
+      <div class="box why">
+        <span class="lbl">Why <code>getClient()</code> and not the usual <code>query()</code></span>
+        <p>The everyday <code class="inl">query()</code> helper grabs any free connection from the pool per call &mdash; useless for a transaction, where <code class="inl">BEGIN</code>, both <code class="inl">INSERT</code>s and <code class="inl">COMMIT</code> must run on the <em class="k">same</em> connection. So transactional code checks out a dedicated <code class="inl">client</code>, and the <code class="inl">finally</code> block guarantees it's returned even if something throws &mdash; forget that <code class="inl">release()</code> and the pool leaks connections until the server dies.</p>
+      </div>
+      <div class="box tell">
+        <span class="lbl">Where else this pattern appears &mdash; and where it honestly doesn't</span>
+        <p>The identical <code class="inl">BEGIN &rarr; write &rarr; INSERT audit_logs &rarr; COMMIT/ROLLBACK</code> shape guards <strong>appointment status changes</strong> (<code class="inl">appointments.repository.updateStatus</code>, which also stores a JSON <code class="inl">metadata</code> blob) and the multi-table <strong>user+patient registration</strong> and <strong>password reset</strong>. Being precise: the audit trail currently covers <em>health-record creation</em> and <em>appointment status transitions</em> &mdash; appointment <em>booking</em> and health-record <em>edits</em> are not yet audited. Knowing that boundary is part of truly understanding the system.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="trace-token">
+      <h2><span class="n">07</span>Trace D</h2>
+      <h3 class="title">The token lifecycle &mdash; issue, attach, expire, rotate</h3>
+      <p>Two tokens, two very different jobs. This is the single most security-sensitive flow in the system.</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>Token</th><th>Lifetime</th><th>Where it lives</th><th>Job</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Access token</strong> (JWT)</td><td>15 minutes</td><td>Browser memory; sent as <code>Authorization: Bearer</code></td><td>Proves identity on every API call &mdash; stateless, never stored server-side</td></tr>
+            <tr><td><strong>Refresh token</strong></td><td>7 days</td><td>HTTP-only cookie (browser) &middot; SHA-256 <em>hash</em> (database)</td><td>Mints new access tokens without re-login</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Issue &amp; hash on login <span class="path">auth.service.ts</span></h4>
+      <script type="text/plain" class="src" data-file="auth.service.ts" data-lang="TypeScript">
+function hashToken(raw: string): string {
+  return crypto.createHash('sha256').update(raw).digest('hex');   // store the hash, keep the raw only in the cookie
+}
+
+async login(dto: LoginDto) {
+  const user = await authRepository.findUserByEmail(dto.email);
+  // Same failure for "no such user" and "wrong password" — prevents user enumeration
+  if (!user || !(await bcrypt.compare(dto.password, user.password_hash))) {
+    throw new AppError('Invalid credentials', 401);
+  }
+  if (!user.is_active) throw new AppError('Account is disabled', 403);
+
+  const accessToken = signAccessToken(user);                 // 15-min JWT
+  const rawRefresh  = generateRawToken();                    // 32 random bytes
+  await authRepository.saveRefreshToken(user.id, hashToken(rawRefresh), refreshTokenExpiry());
+  const { password_hash: _, ...safeUser } = user;            // never leak the hash to the client
+  return { accessToken, refreshToken: rawRefresh, user: safeUser };
+}
+</script>
+      <div class="box why">
+        <span class="lbl">Why the refresh token is stored hashed</span>
+        <p>The database only ever holds <code class="inl">SHA-256(token)</code>. If the DB is breached, the stolen hashes are useless &mdash; you can't reverse them into a usable token. The raw value exists only inside the user's HTTP-only cookie. It's the same reasoning as password hashing, applied to sessions.</p>
+      </div>
+
+      <h4>Rotate on refresh <span class="path">auth.service.ts &amp; auth.controller.ts</span></h4>
+      <script type="text/plain" class="src" data-file="auth.service.ts" data-lang="TypeScript">
+async refresh(rawToken: string) {
+  const hash   = hashToken(rawToken);
+  const stored = await authRepository.findRefreshToken(hash);   // must exist, not revoked, not expired
+  if (!stored) throw new AppError('Invalid or expired refresh token', 401);
+
+  await authRepository.revokeRefreshToken(hash);               // ROTATION: burn the old one immediately
+
+  const user = await authRepository.findUserById(stored.user_id);
+  if (!user) throw new AppError('User not found', 401);
+
+  const accessToken = signAccessToken(user);
+  const newRaw      = generateRawToken();
+  await authRepository.saveRefreshToken(user.id, hashToken(newRaw), refreshTokenExpiry());
+  return { accessToken, refreshToken: newRaw };               // a brand-new refresh token each time
+}
+</script>
+      <p>The controller sets the raw refresh token in a hardened cookie and returns only the access token in the JSON body:</p>
+      <script type="text/plain" class="src" data-file="auth.controller.ts" data-lang="TypeScript">
+const COOKIE_OPTS = {
+  httpOnly: true,                                   // JavaScript can't read it — XSS can't steal it
+  secure: process.env.NODE_ENV === 'production',    // HTTPS-only in prod
+  sameSite: 'strict' as const,                      // not sent on cross-site requests — CSRF defence
+  maxAge: 7 * 24 * 60 * 60 * 1000,                  // 7 days
+};
+</script>
+      <div class="box tell">
+        <span class="lbl">The whole handshake, in one breath</span>
+        <p>Login &rarr; short JWT in memory + refresh cookie set. Access token expires after 15 min &rarr; API returns <code class="inl">401</code> &rarr; the frontend interceptor (section 6) posts to <code class="inl">/auth/refresh</code> with the cookie &rarr; server verifies the hash, <strong>revokes it, issues a new pair</strong> &rarr; the original request is replayed. <code class="inl">logout</code> revokes <em>all</em> of a user's refresh tokens; a password reset does the same, so a reset kicks every existing session.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="middleware">
+      <h2><span class="n">08</span>Cross-Cutting</h2>
+      <h3 class="title">The guards, and why <code>app.ts</code> orders them the way it does</h3>
+      <p>Seven small files in <code class="inl">middleware/</code> touch nearly every request. A random-file stop is likely to land here, so know each one's single job.</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>File</th><th>Job</th><th>If you deleted it&hellip;</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">authenticate.ts</td><td>Verify the JWT, attach <code>req.user</code></td><td>anyone could call any endpoint as anyone</td></tr>
+            <tr><td class="mono">authorize.ts</td><td>Allow only listed roles (<code>authorize('doctor')</code>)</td><td>a patient could hit doctor/admin routes</td></tr>
+            <tr><td class="mono">isOwner.ts</td><td>Allow admins, else require <code>params.id === user.id</code></td><td>users could read/edit each other's records</td></tr>
+            <tr><td class="mono">validate.ts</td><td>Zod-check the body; replace it with parsed data</td><td>malformed input would reach services &amp; SQL</td></tr>
+            <tr><td class="mono">rateLimiter.ts</td><td>10 req/15m on auth, 100 on API</td><td>brute-force &amp; abuse go unthrottled</td></tr>
+            <tr><td class="mono">catchAsync.ts</td><td>Forward async errors to the handler</td><td>a rejected promise would hang the request</td></tr>
+            <tr><td class="mono">errorHandler.ts</td><td>Turn any thrown error into a clean JSON response</td><td>stack traces would leak to clients</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Two tiny files worth reading in full</h4>
+      <script type="text/plain" class="src" data-file="middleware/authorize.ts + isOwner.ts" data-lang="TypeScript">
+// authorize.ts — role gate, curried so you write authorize('doctor','admin')
+export function authorize(...roles: UserRole[]) {
+  return (req, _res, next) => {
+    const user = (req as AuthenticatedRequest).user;
+    if (!user) return next(new AppError('Authentication required', 401));
+    if (!roles.includes(user.role)) return next(new AppError('Insufficient permissions', 403));
+    next();
+  };
+}
+
+// isOwner.ts — resource gate: admins pass, everyone else must own the :id
+export function isOwner(req, _res, next) {
+  const user = (req as AuthenticatedRequest).user;
+  if (!user) return next(new AppError('Authentication required', 401));
+  if (user.role === 'admin') return next();
+  if (req.params.id !== user.id) return next(new AppError('Insufficient permissions', 403));
+  next();
+}
+</script>
+      <div class="box tell">
+        <span class="lbl">Two layers of &ldquo;are you allowed&rdquo;</span>
+        <p><code class="inl">authorize</code> is <strong>role-level</strong> (&ldquo;doctors may create records&rdquo;). <code class="inl">isOwner</code> is <strong>row-level</strong> (&ldquo;you may only touch <em>your own</em> user id&rdquo;). Services add a third, finer check &mdash; e.g. an appointment's patient must match <em>this</em> patient. Coarse-to-fine, and each layer assumes the one before it already ran.</p>
+      </div>
+
+      <h4>The assembly &mdash; order is not decorative <span class="path">server/src/app.ts</span></h4>
+      <script type="text/plain" class="src" data-file="app.ts" data-lang="TypeScript">
+const app = express();
+
+app.use(helmet());                       // 1. security headers FIRST, before anything can respond
+app.use(cors({ origin: config.CORS_ORIGIN, credentials: true, /* ... */ }));  // 2. allow the SPA + cookies
+app.use(express.json());                 // 3. parse body so validate() has something to read
+app.use(cookieParser());                 // 4. parse the refresh cookie so /auth/refresh can find it
+if (config.NODE_ENV !== 'test') app.use(morgan('combined'));  // 5. request logging (quiet in tests)
+
+app.get('/api/v1/health', /* ... */);    // liveness probe: no auth, no rate limit
+
+app.use('/api/v1', apiRateLimiter);      // 6. throttle everything under /api/v1
+app.use('/api/v1/auth', authRouter);     // 7. mount each feature router
+app.use('/api/v1/health-records', healthRecordsRouter);
+// ...other routers...
+
+app.use((_req, res) => res.status(404).json({ status:'error', message:'Route not found' }));  // 8. no match
+app.use(errorHandler);                    // 9. LAST — the only 4-arg middleware; catches everything above
+</script>
+      <div class="box why">
+        <span class="lbl">Why this exact order</span>
+        <p>Middleware runs top-to-bottom. <code class="inl">helmet</code> is first so headers are set even on error responses. Body/cookie parsers must precede routers, or <code class="inl">req.body</code> and <code class="inl">req.cookies</code> would be empty when handlers read them. The 404 sits after all routers (&ldquo;nothing matched&rdquo;), and <code class="inl">errorHandler</code> is dead last because Express only treats a <strong>4-argument</strong> function as an error handler, and it must be able to catch failures from every layer above it.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="rules">
+      <h2><span class="n">09</span>Domain Rules</h2>
+      <h3 class="title">The five rules that make this <em>healthcare</em>, not generic CRUD</h3>
+      <p>Anyone can build create-read-update-delete. These are the constraints that encode real clinical and compliance concerns &mdash; and they're the answers to most &ldquo;why does it do that?&rdquo; questions.</p>
+      <ol class="list">
+        <li><strong>Atomic audit trail</strong> &mdash; state changes and their audit rows commit together or not at all (<code class="inl">health-records.repository.ts</code>, <code class="inl">appointments.repository.ts</code>). <em>See Trace C.</em> Compliance needs a tamper-consistent record of who did what; a &ldquo;log after the fact&rdquo; approach can silently lose entries.</li>
+        <li><strong>24-hour edit window</strong> &mdash; a health record freezes 24 h after creation (<code class="inl">health-records.service.ts</code>, <code class="inl">EDIT_WINDOW_HOURS</code>). Medical records are legal documents; you may fix a fresh typo, but you can't quietly rewrite history a week later.</li>
+        <li><strong>Double-defended booking</strong> &mdash; an app-level <code class="inl">isSlotTaken</code> check <em>and</em> a DB partial-unique index prevent double-booking a doctor (section 4 + 11). Two patients hitting &ldquo;book&rdquo; at the same millisecond must not both win.</li>
+        <li><strong>Three-role, coarse-to-fine access</strong> &mdash; <code class="inl">patient</code> / <code class="inl">doctor</code> / <code class="inl">admin</code>, enforced at the route (<code class="inl">authorize</code>), the row (<code class="inl">isOwner</code>), <em>and</em> inside services (ownership of the specific appointment/record). A doctor can only edit their own patients' records; a patient can only cancel their own <em>pending</em> appointments.</li>
+        <li><strong>Soft deletes</strong> &mdash; users carry a <code class="inl">deleted_at</code> column and every lookup filters <code class="inl">WHERE deleted_at IS NULL</code> (see <code class="inl">auth.repository.ts</code>). Historical appointments and records must keep pointing at a real person even after an account is &ldquo;removed,&rdquo; so rows are flagged, never physically dropped.</li>
+      </ol>
+      <div class="box tell">
+        <span class="lbl">The appointment status machine (bonus rule)</span>
+        <p>Status flows <code class="inl">pending &rarr; confirmed &rarr; completed</code>, with <code class="inl">cancelled</code> as a terminal side-exit. The service enforces the transitions: doctors may only <em>confirm</em> or <em>complete</em>; patients may only cancel a <em>pending</em> one; and nothing can move out of <code class="inl">cancelled</code> or <code class="inl">completed</code>. That logic is in <code class="inl">appointments.service.ts &rarr; updateStatus / cancelAppointment</code>.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="db">
+      <h2><span class="n">10</span>Data Layer</h2>
+      <h3 class="title">The database &amp; how migrations run</h3>
+      <p>Nine tables, all UUID primary keys, all relationships enforced by foreign keys with <code class="inl">ON DELETE CASCADE</code>. A few schema decisions carry real weight:</p>
+
+      <h4>The partial unique index that guarantees no double-booking <span class="path">migrations/004_appointments.sql</span></h4>
+      <script type="text/plain" class="src" data-file="004_appointments.sql" data-lang="SQL">
+CREATE TABLE IF NOT EXISTS appointments (
+  id           UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  patient_id   UUID        NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+  doctor_id    UUID        NOT NULL REFERENCES doctors(id)  ON DELETE CASCADE,
+  scheduled_at TIMESTAMPTZ NOT NULL,
+  status       VARCHAR(20) NOT NULL DEFAULT 'pending'
+                 CHECK (status IN ('pending','confirmed','cancelled','completed')),
+  notes        TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- The database itself forbids two live bookings in the same slot...
+CREATE UNIQUE INDEX IF NOT EXISTS idx_appointments_doctor_scheduled
+  ON appointments(doctor_id, scheduled_at)
+  WHERE status != 'cancelled';        -- ...but a CANCELLED slot can be re-booked
+</script>
+      <div class="box why">
+        <span class="lbl">Why <em>partial</em> (the <code>WHERE</code> clause)</span>
+        <p>A plain unique index would permanently burn a time slot the moment anyone cancelled. Scoping uniqueness to <code class="inl">status != 'cancelled'</code> means cancelled appointments don't occupy the slot &mdash; it frees up for re-booking, while two <em>active</em> appointments still collide. The <code class="inl">CHECK</code> constraint on <code class="inl">status</code> is the DB-level twin of the TypeScript union type.</p>
+      </div>
+
+      <h4>The migration runner is idempotent and transactional <span class="path">migrations/migrate.ts</span></h4>
+      <script type="text/plain" class="src" data-file="migrate.ts" data-lang="TypeScript">
+// A `migrations` table records every applied filename.
+const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();  // 001, 002, 003...
+
+for (const file of files) {
+  const { rows } = await client.query('SELECT id FROM migrations WHERE filename = $1', [file]);
+  if (rows.length > 0) { console.log(`  skip  ${file}`); continue; }   // already applied — skip
+
+  const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
+  await client.query('BEGIN');
+  try {
+    await client.query(sql);
+    await client.query('INSERT INTO migrations (filename) VALUES ($1)', [file]);
+    await client.query('COMMIT');     // a migration + its bookkeeping commit together
+  } catch (err) {
+    await client.query('ROLLBACK');   // a broken migration leaves the DB untouched
+    throw err;
+  }
+}
+</script>
+      <div class="box why">
+        <span class="lbl">Why this matters for deployment</span>
+        <p>You can run <code class="inl">npm run migrate</code> a hundred times safely: applied files are skipped, and each migration is wrapped in its own transaction, so a failure never leaves a half-migrated schema. That's what makes the CI step and zero-downtime deploys trustworthy &mdash; the same command is safe on an empty DB and a live one.</p>
+      </div>
+      <div class="box tell">
+        <span class="lbl">The nine tables at a glance</span>
+        <p><code class="inl">users</code> (the identity root) &middot; <code class="inl">patients</code> &amp; <code class="inl">doctors</code> (1:1 profiles off a user) &middot; <code class="inl">appointments</code> &middot; <code class="inl">health_records</code> &middot; <code class="inl">audit_logs</code> &middot; and three token tables: <code class="inl">refresh_tokens</code>, <code class="inl">email_verification_tokens</code>, <code class="inl">password_reset_tokens</code>. A patient <em>is</em> a user; a doctor <em>is</em> a user &mdash; which is exactly why the read queries JOIN back to <code class="inl">users</code> twice for names.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="deploy">
+      <h2><span class="n">11</span>Runtime &amp; Deploy</h2>
+      <h3 class="title">Configuration chooses the environment</h3>
+      <p>The same server binary runs in three tiers with <strong>zero code changes</strong> &mdash; only environment variables differ. That flexibility lives in two files.</p>
+
+      <h4>Every setting is validated at boot <span class="path">server/src/config.ts</span></h4>
+      <script type="text/plain" class="src" data-file="config.ts" data-lang="TypeScript">
+const envSchema = z.object({
+  NODE_ENV:      z.enum(['development','production','test']).default('development'),
+  DATABASE_URL:  z.string().min(1, 'DATABASE_URL is required'),
+  JWT_SECRET:    z.string().min(32, 'JWT_SECRET must be at least 32 characters'),  // refuses weak secrets
+  EMAIL_PROVIDER: z.enum(['mailtrap','resend','ses']).default('mailtrap'),
+  CORS_ORIGIN:   z.string().default('http://localhost:4200'),
+  // ...
+});
+
+const parsed = envSchema.safeParse(process.env);
+if (!parsed.success) {                              // fail LOUD and EARLY
+  console.error('Invalid environment variables:', parsed.error.flatten().fieldErrors);
+  process.exit(1);                                  // never boot half-configured
+}
+export const config = parsed.data;
+</script>
+      <div class="box why">
+        <span class="lbl">Why validate env vars with Zod and <code>exit(1)</code></span>
+        <p>A missing <code class="inl">DATABASE_URL</code> or a 12-character <code class="inl">JWT_SECRET</code> is a misconfiguration you want to discover at startup, not three requests later in production. The server refuses to boot rather than run insecurely &mdash; and the same <code class="inl">getEmailConfig()</code> switch turns <code class="inl">EMAIL_PROVIDER</code> into Mailtrap, Resend, or AWS SES transport settings. Swap the tier by swapping <code class="inl">DATABASE_URL</code> + <code class="inl">EMAIL_PROVIDER</code>; nothing recompiles.</p>
+      </div>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>Tier</th><th>Database</th><th>Email</th><th>Compute</th></tr></thead>
+          <tbody>
+            <tr><td>Local</td><td>Docker Postgres 15</td><td>Mailtrap (catches all)</td><td>localhost via <code>docker-compose</code></td></tr>
+            <tr><td>Free prod</td><td>Neon (0.5 GB)</td><td>Resend (3k/mo)</td><td>Render / GitHub Actions</td></tr>
+            <tr><td>Scaled</td><td>AWS RDS (Multi-AZ)</td><td>AWS SES</td><td>AWS EKS + Terraform</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>CI gates every push <span class="path">.github/workflows/ci.yml</span></h4>
+      <p>On push/PR to <code class="inl">main</code>, GitHub Actions spins up a real <code class="inl">postgres:15</code> service, then runs, in order: <code class="inl">tsc --noEmit</code> (type check) &rarr; <code class="inl">migrate:test</code> (prove migrations apply cleanly) &rarr; <code class="inl">npm test</code> (Jest + Supertest against the live DB, 80% coverage floor). A type error, a broken migration, or a dropped test all block the merge. <code class="inl">server.ts</code> handles the deploy side &mdash; <code class="inl">SIGTERM</code> triggers a graceful drain so Kubernetes can roll pods without dropping in-flight requests.</p>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="why">
+      <h2><span class="n">12</span>The Why Ledger</h2>
+      <h3 class="title">Trade-offs &mdash; and the file where each shows up</h3>
+      <p>Every &ldquo;why X over Y&rdquo; question, tied to the code that makes the decision real so you can go look.</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>Decision</th><th>Chosen</th><th>Over</th><th>Because &mdash; and where to see it</th></tr></thead>
+          <tbody>
+            <tr><td>DB access</td><td>Raw SQL via <code>pg</code></td><td>Prisma / TypeORM</td><td>Complex JOINs stay visible &amp; tunable; no hidden N+1. See any <code>*.repository.ts</code>.</td></tr>
+            <tr><td>Sessions</td><td>JWT + rotating refresh</td><td>Stateful server sessions</td><td>Stateless access tokens scale horizontally; rotation limits blast radius. <code>auth.service.ts</code>.</td></tr>
+            <tr><td>Refresh storage</td><td>SHA-256 hash</td><td>Raw token in DB</td><td>Breach-resistant &mdash; stored hashes are unusable. <code>hashToken()</code> in <code>auth.service.ts</code>.</td></tr>
+            <tr><td>Token location</td><td>Memory + HTTP-only cookie</td><td><code>localStorage</code></td><td>XSS can't read either. <code>auth.service.ts</code> + <code>COOKIE_OPTS</code> in <code>auth.controller.ts</code>.</td></tr>
+            <tr><td>Validation</td><td>Zod</td><td>class-validator / manual</td><td>One declaration = runtime check + TS type via <code>z.infer</code>. <code>*.schemas.ts</code>.</td></tr>
+            <tr><td>Architecture</td><td>Modular monolith</td><td>Microservices</td><td>One deploy, feature folders; fine below ~8 engineers. <code>modules/</code> layout.</td></tr>
+            <tr><td>Concurrency safety</td><td>DB unique index</td><td>App check alone</td><td>App check races; the index can't. <code>004_appointments.sql</code>.</td></tr>
+            <tr><td>Env config</td><td>Validated at boot, exit on fail</td><td>Read lazily</td><td>Fail fast, never boot insecure. <code>config.ts</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="drift">
+      <h2><span class="n">13</span>Honesty</h2>
+      <h3 class="title">Where the docs disagree with the code</h3>
+      <p>These are the contradictions a newcomer can't discover on their own &mdash; and the highest-value context in this whole document. When docs and code disagree, <strong>the code wins.</strong></p>
+      <ul>
+        <li><strong>Folder layout.</strong> The older architecture notes (and the <code class="inl">hi.html</code> decision tool) describe top-level <code class="inl">routes/ controllers/ services/ repositories/</code> folders and a <code class="inl">server/src/frontend/</code> directory. The <em class="k">real</em> code is organised <strong>by feature</strong>: <code class="inl">server/src/modules/&lt;name&gt;/</code> with the five files co-located, and there is no <code class="inl">frontend/</code> folder. Trust <code class="inl">modules/</code>.</li>
+        <li><strong>API prefix.</strong> Prose sometimes writes <code class="inl">/api/&hellip;</code>; the app actually mounts everything under <code class="inl">/api/v1/&hellip;</code> (<code class="inl">app.ts</code>). The proxy and Vercel rewrite both match on <code class="inl">/api</code>, so the versioned paths still flow through.</li>
+        <li><strong>Audit coverage.</strong> The README says &ldquo;every state change is logged.&rdquo; Precisely, audit rows are written for <em>health-record creation</em> and <em>appointment status changes</em>. Appointment <em>booking</em> and health-record <em>edits</em> aren't audited yet &mdash; a real gap worth knowing, not glossing.</li>
+        <li><strong>Session persistence across reload.</strong> The access token lives in memory, so a full page refresh drops it. The refresh cookie can re-mint one, but the code shown doesn't auto-refresh on app bootstrap &mdash; so a hard reload can bounce you to login until the next call triggers the interceptor. Good to know before you &ldquo;fix&rdquo; a non-bug.</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="index">
+      <h2><span class="n">14</span>Reverse Index</h2>
+      <h3 class="title">Open any file &rarr; where it's explained</h3>
+      <p>The coverage guarantee: pick any file, land in a section. If it's not named, it's an instance of the pattern in section 4.</p>
+      <div class="tblwrap">
+        <table>
+          <thead><tr><th>If you're staring at&hellip;</th><th>Read section</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">*.router.ts / *.controller.ts / *.service.ts / *.repository.ts / *.schemas.ts</td><td>4 (the pattern) + the matching Trace</td></tr>
+            <tr><td class="mono">app.ts</td><td>8 (middleware order)</td></tr>
+            <tr><td class="mono">server.ts</td><td>11 (boot &amp; graceful shutdown)</td></tr>
+            <tr><td class="mono">config.ts</td><td>11 (env validation &amp; tiers)</td></tr>
+            <tr><td class="mono">database.ts</td><td>6 (pool vs getClient / transactions)</td></tr>
+            <tr><td class="mono">middleware/authenticate|authorize|isOwner|validate|rateLimiter|catchAsync|errorHandler.ts</td><td>8</td></tr>
+            <tr><td class="mono">health-records.* (24h window, atomic audit)</td><td>3, 6, 9</td></tr>
+            <tr><td class="mono">appointments.* (slot conflict, status machine)</td><td>4, 9, 10</td></tr>
+            <tr><td class="mono">auth.* (login, refresh, tokens)</td><td>7</td></tr>
+            <tr><td class="mono">migrations/*.sql + migrate.ts</td><td>10</td></tr>
+            <tr><td class="mono">types/index.ts (AppError, row types)</td><td>1, 4, 8</td></tr>
+            <tr><td class="mono">client/.../auth.service.ts, auth.interceptor.ts, guards</td><td>5 (BFF) + 7 (tokens)</td></tr>
+            <tr><td class="mono">proxy.conf.json, vercel.json</td><td>5 (the BFF seam)</td></tr>
+            <tr><td class="mono">app.config.ts, app.routes.ts</td><td>5 (interceptor + guard wiring)</td></tr>
+            <tr><td class="mono">docker-compose.yml, infra/**, ci.yml</td><td>11</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="box why">
+        <span class="lbl">The promise</span>
+        <p>Study these fifteen sections and no file in this repository can be shown to you that you can't place, explain, and justify &mdash; because every file is either an instance of the five-file pattern, a cross-cutting guard, a domain rule, or a named one-of-a-kind file, and all four are covered above.</p>
+      </div>
+    </section>
+
+    <div class="foot">
+      Healthcare Management System &mdash; code-anchored walkthrough. Every snippet is quoted from the repository as it stands on this branch; where it conflicts with older prose, the code is authoritative (section 13).
+    </div>
+
+    </div><!-- /wrap -->
+  </main>
+</div>
+
+<script>
+// Render the inert code blocks (kept in <script type="text/plain"> so <, >, && are literal),
+// with light, language-aware comment highlighting.
+(function () {
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function highlight(text, lang){
+    return text.split('\n').map(function(line){
+      var idx = -1;
+      if (lang === 'SQL') {
+        var m = line.match(/--.*/);
+        if (m) idx = m.index;
+      } else {
+        var m2 = line.match(/(?<!:)\/\/.*/);   // JS/TS line comment, but not the // in http://
+        if (m2) idx = m2.index;
+      }
+      if (idx >= 0) {
+        return esc(line.slice(0, idx)) + '<span class="cm">' + esc(line.slice(idx)) + '</span>';
+      }
+      return esc(line);
+    }).join('\n');
+  }
+  document.querySelectorAll('script.src').forEach(function (s) {
+    var raw = s.textContent.replace(/^\n/, '').replace(/\s+$/, '');
+    var fig = document.createElement('figure'); fig.className = 'code';
+    var head = document.createElement('div'); head.className = 'code-head';
+    head.innerHTML =
+      '<span class="dot"></span>' +
+      '<span class="file">' + esc(s.dataset.file || '') + '</span>' +
+      '<span class="lang">' + esc(s.dataset.lang || '') + '</span>';
+    var pre = document.createElement('pre');
+    pre.innerHTML = '<code>' + highlight(raw, s.dataset.lang) + '</code>';
+    fig.appendChild(head); fig.appendChild(pre);
+    s.parentNode.insertBefore(fig, s);
+  });
+
+  // Scrollspy: highlight the current section in the sidebar.
+  var links = Array.prototype.slice.call(document.querySelectorAll('#tocList a'));
+  var map = {};
+  links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+  var obs = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) {
+        links.forEach(function (l) { l.classList.remove('active'); });
+        if (map[e.target.id]) map[e.target.id].classList.add('active');
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px', threshold: 0 });
+  document.querySelectorAll('main section[id]').forEach(function (sec) { obs.observe(sec); });
+})();
+</script>
+</body>
+</html>

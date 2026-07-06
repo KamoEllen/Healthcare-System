@@ -160,6 +160,7 @@
       <li><a href="#why">The trade-off ledger (why X over Y)</a></li>
       <li><a href="#drift">Where the docs disagree with the code</a></li>
       <li><a href="#index">Reverse index &mdash; open any file</a></li>
+      <li><a href="#files"><strong>Every folder, every file</strong></a></li>
     </ol>
   </nav>
 
@@ -909,6 +910,376 @@ export const config = parsed.data;
       <div class="box why">
         <span class="lbl">The promise</span>
         <p>Study these fifteen sections and no file in this repository can be shown to you that you can't place, explain, and justify &mdash; because every file is either an instance of the five-file pattern, a cross-cutting guard, a domain rule, or a named one-of-a-kind file, and all four are covered above.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="files">
+      <h2><span class="n">15</span>Full Reference</h2>
+      <h3 class="title">Every folder, every file</h3>
+      <p class="lead">The complete map, one leaf-folder at a time. For each folder: the files in it, what they aim to do and <em class="k">how</em>, what they connect to, and who calls them and why.</p>
+      <p>Read a folder like a sentence: <em>&ldquo;the files in <code class="inl">tests/helpers/</code> exist to give every test a clean database &mdash; they do it by running the migrations then truncating tables, and they're imported by every <code class="inl">*.test.ts</code> file because those tests want to assert against real SQL, not mocks.&rdquo;</em> Where a folder's code already appears in an earlier section, this points you there instead of repeating it.</p>
+
+      <!-- ================= SERVER ================= -->
+      <h3 class="title" style="border-top:2px solid var(--red);padding-top:26px;margin-top:38px">🖥️ &nbsp;server &mdash; the Express API</h3>
+
+      <h4>server/ <span class="path">(project root of the API)</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">Build &amp; tooling config. No runtime logic &mdash; these files tell Node, TypeScript and Jest how to run everything under <code class="inl">src/</code>.</p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>File</th><th>Aim &amp; how</th><th>Used by</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">package.json</td><td>Declares deps and the scripts that <em>are</em> the project's verbs: <code>dev</code> (ts-node-dev hot reload), <code>build</code> (tsc), <code>migrate</code>, <code>seed</code>, <code>test</code> (jest --coverage).</td><td>npm, CI, Docker</td></tr>
+          <tr><td class="mono">tsconfig.json</td><td>Strict TypeScript &rarr; CommonJS; sets <code>outDir dist/</code>. <code>strict:true</code> is the contract enforcer for the whole codebase.</td><td>tsc, ts-node, ts-jest</td></tr>
+          <tr><td class="mono">jest.config.ts</td><td>ts-jest preset; the <strong>80% coverage floor</strong> lives here; excludes <code>server.ts / migrations / seeds / types / swagger</code> from coverage math.</td><td><code>npm test</code>, CI</td></tr>
+          <tr><td class="mono">.env / .env.test / .env.example</td><td>The actual secret values per environment; <code>config.ts</code> picks <code>.env.test</code> when <code>NODE_ENV=test</code>, else <code>.env</code>.</td><td><code>config.ts</code>, <code>migrate.ts</code></td></tr>
+        </tbody>
+      </table></div>
+      <script type="text/plain" class="src" data-file="server/package.json — scripts" data-lang="JSON">
+"scripts": {
+  "dev":          "ts-node-dev --respawn --transpile-only src/server.ts",
+  "build":        "tsc",
+  "migrate":      "ts-node src/migrations/migrate.ts",
+  "migrate:test": "cross-env NODE_ENV=test ts-node src/migrations/migrate.ts",
+  "seed":         "ts-node src/seeds/seed.ts",
+  "test":         "jest --coverage --forceExit"
+}
+</script>
+
+      <h4>server/src/ <span class="path">the composition root</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">The five files that wire the whole API together. Everything else is imported <em>into</em> here.</p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>File</th><th>Aim &amp; how</th><th>Connects to</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">app.ts</td><td>Builds the Express app: middleware in order, mounts all six routers under <code>/api/v1</code>, adds 404 + error handler. <em>Full detail &rarr; section 8.</em></td><td>every router + middleware</td></tr>
+          <tr><td class="mono">server.ts</td><td>Imports <code>app</code>, calls <code>listen()</code>, and drains gracefully on <code>SIGTERM</code>/<code>SIGINT</code> so K8s can roll pods. <em>&rarr; section 11.</em></td><td><code>app.ts</code>, <code>database.ts</code></td></tr>
+          <tr><td class="mono">config.ts</td><td>Zod-validates env vars and <code>exit(1)</code>s on bad config; <code>getEmailConfig()</code> maps the provider to SMTP. <em>&rarr; section 11.</em></td><td>imported almost everywhere</td></tr>
+          <tr><td class="mono">database.ts</td><td>The single <code>pg</code> Pool + <code>query()</code> (one-shot) and <code>getClient()</code> (transactions) helpers; logs slow queries. <em>&rarr; section 6.</em></td><td>every repository</td></tr>
+          <tr><td class="mono">swagger.ts</td><td>A hand-written OpenAPI 3 spec served at <code>/api/v1/docs</code> via swagger-ui-express &mdash; interactive, browsable API docs.</td><td>mounted by <code>app.ts</code></td></tr>
+        </tbody>
+      </table></div>
+      <script type="text/plain" class="src" data-file="server/src/swagger.ts" data-lang="TypeScript">
+export function registerSwagger(app: Express): void {
+  // Serves an interactive API explorer with a Bearer-auth button at /api/v1/docs
+  app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(spec, { customSiteTitle: 'Healthcare API Docs' }));
+}
+</script>
+
+      <h4>server/src/middleware/ <span class="path">the cross-cutting guards</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">Seven small functions that run <em>between</em> the router and the controller. Each does one job and hands off with <code class="inl">next()</code>. <em>Full detail &rarr; section 8.</em></p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>File</th><th>Aim &amp; how</th><th>Called by</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">authenticate.ts</td><td>Verifies the <code>Bearer</code> JWT, attaches <code>req.user</code>; 401 if missing/expired.</td><td>every router (<code>router.use</code>)</td></tr>
+          <tr><td class="mono">authorize.ts</td><td>Curried role gate: <code>authorize('doctor','admin')</code> &rarr; 403 if role not listed.</td><td>every protected route</td></tr>
+          <tr><td class="mono">isOwner.ts</td><td>Row-level gate: admins pass, else <code>params.id</code> must equal <code>user.id</code>.</td><td><code>users.router</code> (PATCH)</td></tr>
+          <tr><td class="mono">validate.ts</td><td>Runs a Zod schema over <code>req.body</code>; 400 with field errors, else replaces body with parsed data.</td><td>every write route</td></tr>
+          <tr><td class="mono">rateLimiter.ts</td><td>Two limiters: 10/15min on auth, 100/15min on API, via express-rate-limit.</td><td><code>app.ts</code>, <code>auth.router</code></td></tr>
+          <tr><td class="mono">catchAsync.ts</td><td>Wraps an async handler so a rejected promise is forwarded to the error handler instead of hanging.</td><td>every controller method</td></tr>
+          <tr><td class="mono">errorHandler.ts</td><td>The 4-arg terminal handler: maps <code>AppError</code>, <code>ZodError</code>, and PG <code>23505</code> to clean JSON; hides 500 internals.</td><td><code>app.ts</code> (last middleware)</td></tr>
+        </tbody>
+      </table></div>
+      <script type="text/plain" class="src" data-file="middleware/catchAsync.ts + errorHandler.ts (excerpt)" data-lang="TypeScript">
+// catchAsync — the tiny glue that lets services just `throw`
+export function catchAsync(fn: AsyncHandler) {
+  return (req, res, next) => { fn(req, res, next).catch(next); };   // any throw -> errorHandler
+}
+
+// errorHandler — the single place errors become HTTP responses
+if (err instanceof AppError)   return res.status(err.statusCode).json({ status:'error', message: err.message });
+if (err instanceof ZodError)   return res.status(400).json({ status:'error', message:'Validation failed', errors: err.flatten().fieldErrors });
+if (err.code === '23505')      return res.status(409).json({ status:'error', message:'Resource already exists' });  // PG unique violation
+return res.status(500).json({ status:'error', message:'Internal server error' });                                  // never leak stacks
+</script>
+
+      <h4>server/src/modules/&lt;feature&gt;/ <span class="path">the six feature modules</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">Each is the same five files (router / controller / service / repository / schemas &mdash; <em>the pattern &rarr; section 3</em>). Below is what's <strong>distinctive</strong> about each, since the shape is identical.</p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Module</th><th>What it owns &amp; its one distinctive rule</th><th>Deep dive</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">auth/</td><td>Register, login, refresh, logout, verify-email, forgot/reset-password. Distinctive: token hashing + rotation, and multi-table register (user+patient) in one transaction.</td><td>section 7</td></tr>
+          <tr><td class="mono">users/</td><td>Admin user list, get, update-own (<code>isOwner</code>), and <strong>soft-delete</strong> (<code>deleted_at</code>). The identity root; never hard-deletes.</td><td>section 9</td></tr>
+          <tr><td class="mono">patients/</td><td>Profile CRUD + a <code>/me</code> route. Distinctive: reads JOIN back to <code>users</code> for name/email; a patient may only touch their own row.</td><td>section 3</td></tr>
+          <tr><td class="mono">doctors/</td><td>Doctor directory + admin-only create. Distinctive: <code>create()</code> makes a <code>users</code> row (role=doctor) <em>and</em> a <code>doctors</code> row in one transaction.</td><td>section 3</td></tr>
+          <tr><td class="mono">appointments/</td><td>Book / list / status-change / cancel. Distinctive: double-booking defence + status state-machine; status changes write an audit row.</td><td>sections 4, 9</td></tr>
+          <tr><td class="mono">health-records/</td><td>Clinical records. Distinctive: the atomic audit write on create, and the 24-hour edit window.</td><td>sections 3, 6, 9</td></tr>
+        </tbody>
+      </table></div>
+      <p>Three distinctive repository snippets, one per module not shown elsewhere:</p>
+      <script type="text/plain" class="src" data-file="users.repository.ts — soft delete" data-lang="TypeScript">
+async softDelete(id: string): Promise<boolean> {
+  // Never DELETE — just stamp deleted_at so historical appointments/records still resolve the person
+  const result = await query(
+    'UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL', [id]
+  );
+  return (result.rowCount ?? 0) > 0;   // false => already gone / never existed => service throws 404
+}
+</script>
+      <script type="text/plain" class="src" data-file="doctors.repository.ts — create (two tables, one transaction)" data-lang="TypeScript">
+await client.query('BEGIN');
+const userResult = await client.query(
+  `INSERT INTO users (email, password_hash, role, first_name, last_name, email_verified)
+   VALUES ($1,$2,'doctor',$3,$4,true) RETURNING id`, [dto.email, dto.passwordHash, dto.firstName, dto.lastName]);
+await client.query(
+  `INSERT INTO doctors (user_id, specialisation, licence_number) VALUES ($1,$2,$3) RETURNING id`,
+  [userResult.rows[0].id, dto.specialisation, dto.licenceNumber]);
+await client.query('COMMIT');    // a doctor is a user + a doctor row; both or neither
+</script>
+      <script type="text/plain" class="src" data-file="patients.repository.ts — the user JOIN" data-lang="TypeScript">
+// A patient row has no name — names live on `users`. Every read joins back:
+`SELECT p.id, p.user_id, u.email, u.first_name, u.last_name,
+        p.date_of_birth, p.blood_type, p.emergency_contact
+ FROM patients p JOIN users u ON u.id = p.user_id
+ WHERE p.user_id = $1 AND u.deleted_at IS NULL`   // deleted users are invisible everywhere
+</script>
+
+      <h4>server/src/migrations/ <span class="path">the schema, as versioned SQL</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">Numbered <code class="inl">.sql</code> files applied in order by an idempotent runner. They aim to build the whole database from nothing, safely, any number of times. <em>Runner &amp; the appointments index &rarr; section 10.</em></p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>File</th><th>Creates</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">001_users.sql</td><td><code>users</code> (identity root) + the <code>uuid-ossp</code> extension + role CHECK constraint</td></tr>
+          <tr><td class="mono">002_patients.sql</td><td><code>patients</code> — 1:1 with a user (<code>user_id UNIQUE</code>)</td></tr>
+          <tr><td class="mono">003_doctors.sql</td><td><code>doctors</code> — 1:1 with a user; <code>licence_number UNIQUE</code></td></tr>
+          <tr><td class="mono">004_appointments.sql</td><td><code>appointments</code> + the <strong>partial unique index</strong> that forbids double-booking</td></tr>
+          <tr><td class="mono">005_health_records.sql</td><td><code>health_records</code> + indexes for role-filtered listing</td></tr>
+          <tr><td class="mono">006_audit_logs.sql</td><td><code>audit_logs</code> — the append-only trail written inside business transactions</td></tr>
+          <tr><td class="mono">007_tokens.sql</td><td>The three token tables (refresh / email-verify / password-reset) + a defensive <code>DO $$</code> column-add</td></tr>
+          <tr><td class="mono">migrate.ts</td><td>The runner: records applied files in a <code>migrations</code> table, wraps each in its own transaction</td></tr>
+        </tbody>
+      </table></div>
+      <script type="text/plain" class="src" data-file="002_patients.sql + 003_doctors.sql" data-lang="SQL">
+CREATE TABLE IF NOT EXISTS patients (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id           UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,  -- 1:1, cascades on user delete
+  date_of_birth     DATE, blood_type VARCHAR(5), emergency_contact VARCHAR(255),
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS doctors (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id        UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  specialisation VARCHAR(100) NOT NULL,
+  licence_number VARCHAR(50)  NOT NULL UNIQUE                                      -- no two doctors share a licence
+);
+</script>
+
+      <h4>server/src/seeds/ <span class="path">demo data</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">One file, <code class="inl">seed.ts</code>. Aim: create the three demo accounts (admin/doctor/patient) so a fresh clone is instantly usable. How: deletes those three emails first (so re-running is idempotent), then inserts them in a transaction.</p>
+      <script type="text/plain" class="src" data-file="server/src/seeds/seed.ts (excerpt)" data-lang="TypeScript">
+await client.query('BEGIN');
+await client.query(`DELETE FROM users WHERE email IN
+  ('admin@healthcare.dev','doctor@healthcare.dev','patient@healthcare.dev')`);   // idempotent re-seed
+// ...insert admin, doctor (+ doctors row), patient (+ patients row), each password bcrypt-hashed...
+await client.query('COMMIT');
+// Prints:  Admin admin@healthcare.dev/admin123 · Doctor .../doctor123 · Patient .../patient123
+</script>
+
+      <h4>server/src/types/ <span class="path">shared contracts</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">One file, <code class="inl">index.ts</code>. Aim: a single source for cross-module types &mdash; the role/status unions, the DB row shapes, <code class="inl">AuthenticatedRequest</code>, and the <code class="inl">AppError</code> class every service throws. Imported by nearly every file; depends on nothing but Express types.</p>
+
+      <h4>server/tests/ &amp; server/tests/helpers/ <span class="path">the test suite</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">Six <code class="inl">*.test.ts</code> files (one per module) drive the <em>real</em> app with Supertest against a <em>real</em> Postgres &mdash; no mocks. <code class="inl">helpers/</code> gives them a clean DB. This is how the 80% coverage gate is met.</p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>File</th><th>Aim &amp; how</th><th>Called by</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">tests/*.test.ts</td><td>HTTP-level assertions (status codes, cookies, role rules) per module via <code>supertest(app)</code>.</td><td><code>jest</code></td></tr>
+          <tr><td class="mono">helpers/testApp.ts</td><td>Re-exports the Express <code>app</code> <em>without</em> calling <code>listen()</code> &mdash; so Supertest drives it in-process.</td><td>every test file</td></tr>
+          <tr><td class="mono">helpers/testDb.ts</td><td>Runs migrations once (<code>setupTestDb</code>), then <code>TRUNCATE ... RESTART IDENTITY CASCADE</code> before each test for isolation.</td><td>every test file</td></tr>
+          <tr><td class="mono">helpers/setup.ts</td><td>Loads <code>.env.test</code> before anything imports <code>config.ts</code>.</td><td>jest <code>setupFiles</code></td></tr>
+        </tbody>
+      </table></div>
+      <script type="text/plain" class="src" data-file="tests/helpers/testDb.ts + a real test" data-lang="TypeScript">
+// Clean slate before EACH test — real tables, zeroed:
+export async function truncateTestDb() {
+  await pool.query(`TRUNCATE TABLE password_reset_tokens, email_verification_tokens, refresh_tokens,
+    audit_logs, health_records, appointments, doctors, patients, users RESTART IDENTITY CASCADE`);
+}
+
+// tests/auth.test.ts — drives the actual HTTP stack:
+it('returns 409 if email already registered', async () => {
+  await request(app).post('/api/v1/auth/register').send(validUser);
+  const res = await request(app).post('/api/v1/auth/register').send(validUser);
+  expect(res.status).toBe(409);
+});
+</script>
+
+      <!-- ================= CLIENT ================= -->
+      <h3 class="title" style="border-top:2px solid var(--red);padding-top:26px;margin-top:44px">🌐 &nbsp;client &mdash; the Angular 19 app</h3>
+
+      <h4>client/ &amp; client/src/ <span class="path">bootstrap &amp; static shell</span></h4>
+      <div class="tblwrap"><table>
+        <thead><tr><th>File</th><th>Aim &amp; how</th><th>Connects to</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">angular.json</td><td>Angular CLI build/serve config; wires the dev server to <code>proxy.conf.json</code>.</td><td><code>ng serve/build</code></td></tr>
+          <tr><td class="mono">src/main.ts</td><td>The entry point: <code>bootstrapApplication(AppComponent, appConfig)</code> &mdash; no NgModules.</td><td><code>app.config.ts</code></td></tr>
+          <tr><td class="mono">src/index.html</td><td>The single HTML shell with <code>&lt;app-root&gt;</code>; everything else is rendered by Angular.</td><td>the browser</td></tr>
+          <tr><td class="mono">src/styles.css</td><td>Global theme (the dark UI, cards, badges the components reference by class).</td><td>all components</td></tr>
+          <tr><td class="mono">src/proxy.conf.json</td><td><strong>Dev half of the BFF seam</strong>: forwards <code>/api</code> &rarr; <code>localhost:3000</code>. <em>&rarr; section 5.</em></td><td>Angular dev server</td></tr>
+        </tbody>
+      </table></div>
+      <script type="text/plain" class="src" data-file="client/src/main.ts" data-lang="TypeScript">
+import { bootstrapApplication } from '@angular/platform-browser';
+import { appConfig } from './app/app.config';
+import { AppComponent } from './app/app.component';
+
+bootstrapApplication(AppComponent, appConfig).catch(err => console.error(err));  // standalone bootstrap
+</script>
+
+      <h4>client/src/app/ <span class="path">the root component &amp; wiring</span></h4>
+      <div class="tblwrap"><table>
+        <thead><tr><th>File</th><th>Aim &amp; how</th><th>Connects to</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">app.component.ts</td><td>The shell: top nav (shown only when logged in), role badge, logout button, and <code>&lt;router-outlet&gt;</code>.</td><td><code>AuthService</code>, router</td></tr>
+          <tr><td class="mono">app.config.ts</td><td>Providers: the router, and <code>provideHttpClient(withInterceptors([authInterceptor]))</code> &mdash; how the interceptor gets installed. <em>&rarr; section 5.</em></td><td>interceptor, routes</td></tr>
+          <tr><td class="mono">app.routes.ts</td><td>Lazy routes; <code>canActivate</code> guards protect pages before they load.</td><td>guards, feature components</td></tr>
+        </tbody>
+      </table></div>
+      <script type="text/plain" class="src" data-file="client/src/app/app.routes.ts (excerpt)" data-lang="TypeScript">
+export const routes: Routes = [
+  { path: 'login',    loadComponent: () => import('./features/login/login.component').then(m => m.LoginComponent) },
+  { path: 'dashboard', canActivate: [authGuard],
+    loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent) },
+  { path: 'admin',     canActivate: [authGuard, adminGuard],   // two guards: logged-in AND admin
+    loadComponent: () => import('./features/admin/admin.component').then(m => m.AdminComponent) },
+  { path: '**', redirectTo: 'dashboard' },
+];
+</script>
+
+      <h4>client/src/app/core/ <span class="path">the plumbing (services, interceptor, guards, models)</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">This is the frontend's engine room &mdash; the four folders that make auth, routing and API calls work. The feature components stay dumb because this layer is smart.</p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Folder / file</th><th>Aim &amp; how</th><th>Called by</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">core/services/auth.service.ts</td><td>The one stateful service: holds the in-memory access token + <code>currentUser</code> signal; <code>login/register/refresh/logout</code>. <em>&rarr; sections 5, 7.</em></td><td>components, guards, interceptor</td></tr>
+          <tr><td class="mono">core/interceptors/auth.interceptor.ts</td><td>Attaches the Bearer token to every request; silent refresh-and-replay on 401. <em>&rarr; section 5.</em></td><td>every HttpClient call</td></tr>
+          <tr><td class="mono">core/guards/auth.guard.ts</td><td><code>CanActivateFn</code>: allow if logged in, else redirect to <code>/login</code>.</td><td><code>app.routes.ts</code></td></tr>
+          <tr><td class="mono">core/guards/admin.guard.ts</td><td><code>CanActivateFn</code>: allow only role <code>admin</code>, else bounce to <code>/dashboard</code>.</td><td><code>app.routes.ts</code> (admin route)</td></tr>
+          <tr><td class="mono">core/models/auth.model.ts</td><td>Frontend TS interfaces (<code>User</code>, <code>LoginResponse</code>) that mirror the API's JSON envelope.</td><td>service &amp; components</td></tr>
+        </tbody>
+      </table></div>
+      <script type="text/plain" class="src" data-file="core/guards/auth.guard.ts + admin.guard.ts" data-lang="TypeScript">
+export const authGuard: CanActivateFn = () => {
+  const auth = inject(AuthService), router = inject(Router);
+  return auth.isLoggedIn ? true : router.createUrlTree(['/login']);      // gate: must be signed in
+};
+export const adminGuard: CanActivateFn = () => {
+  const auth = inject(AuthService), router = inject(Router);
+  return auth.userRole === 'admin' ? true : router.createUrlTree(['/dashboard']);  // gate: must be admin
+};
+</script>
+
+      <h4>client/src/app/features/&lt;page&gt;/ <span class="path">one standalone component per screen</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">Six self-contained components. Each declares its own imports, holds its own form/display state, and calls the API through <code class="inl">HttpClient</code> (which the interceptor decorates). They aim to render a screen and collect input; all the hard rules live server-side.</p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Component</th><th>Aim &amp; how</th><th>Calls</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">login/</td><td>Email/password form &rarr; <code>auth.login()</code> &rarr; navigate to dashboard; shows server error message.</td><td><code>AuthService.login</code></td></tr>
+          <tr><td class="mono">register/</td><td>New-patient signup form &rarr; <code>auth.register()</code>.</td><td><code>AuthService.register</code></td></tr>
+          <tr><td class="mono">dashboard/</td><td>Landing page: greets the user, shows stat tiles + their profile (patient or doctor).</td><td><code>/patients/me</code> · <code>/doctors/me</code></td></tr>
+          <tr><td class="mono">appointments/</td><td>List + book/cancel appointments; UI adapts to role.</td><td><code>/appointments</code></td></tr>
+          <tr><td class="mono">health-records/</td><td>List records; doctors get a create form.</td><td><code>/health-records</code></td></tr>
+          <tr><td class="mono">admin/</td><td>Admin-only user table (list, toggle active, soft-delete).</td><td><code>/users</code></td></tr>
+        </tbody>
+      </table></div>
+      <script type="text/plain" class="src" data-file="features/login/login.component.ts — the handler" data-lang="TypeScript">
+onSubmit(): void {
+  if (!this.email || !this.password) return;
+  this.loading = true; this.error = '';
+  this.auth.login(this.email, this.password).subscribe({
+    next: () => this.router.navigate(['/dashboard']),                 // success -> in
+    error: (err) => { this.error = err.error?.message ?? 'Login failed.'; this.loading = false; },  // show API message
+  });
+}
+</script>
+
+      <!-- ================= INFRA & ROOT ================= -->
+      <h3 class="title" style="border-top:2px solid var(--red);padding-top:26px;margin-top:44px">📦 &nbsp;infra &amp; root &mdash; how it ships</h3>
+
+      <h4>infra/docker/ <span class="path">the container image</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">One <code class="inl">Dockerfile</code>. Aim: a small, safe production image. How: a two-stage build (compile in a fat stage, copy only <code>dist/</code> + prod deps into a slim one), runs as a <strong>non-root user</strong>, and self-reports health via the <code>/api/v1/health</code> endpoint.</p>
+      <script type="text/plain" class="src" data-file="infra/docker/Dockerfile (excerpt)" data-lang="Dockerfile">
+# Stage 1: build with dev deps
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY server/package*.json ./ ; RUN npm ci
+COPY server/src ./src ; COPY server/tsconfig.json ./ ; RUN npm run build
+
+# Stage 2: slim runtime, prod deps only, non-root
+FROM node:20-alpine AS production
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+COPY server/package*.json ./ ; RUN npm ci --omit=dev
+COPY --from=builder /app/dist ./dist
+USER appuser                                    # never run as root
+HEALTHCHECK CMD wget -qO- http://localhost:3000/api/v1/health || exit 1
+CMD ["node", "dist/server.js"]
+</script>
+
+      <h4>infra/k8s/ <span class="path">the Kubernetes deployment</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">Four manifests describing how the API runs on a cluster. They aim for zero-downtime rollout and self-healing.</p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>File</th><th>Aim &amp; how</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">deployment.yaml</td><td>2 replicas; <code>RollingUpdate maxUnavailable:0</code> (zero-downtime); readiness + liveness probes hit <code>/api/v1/health</code>; env from ConfigMap + Secret; CPU/memory limits.</td></tr>
+          <tr><td class="mono">service.yaml</td><td>A <code>ClusterIP</code> that load-balances port 80 &rarr; the pods' port 3000.</td></tr>
+          <tr><td class="mono">ingress.yaml</td><td>nginx ingress + cert-manager TLS; routes <code>/api</code> &rarr; API service, <code>/</code> &rarr; frontend. (The cluster's own BFF seam.)</td></tr>
+          <tr><td class="mono">configmap.yaml</td><td>Non-secret prod env (NODE_ENV, JWT expiry, EMAIL_PROVIDER=ses, CORS_ORIGIN, rate limits).</td></tr>
+        </tbody>
+      </table></div>
+      <script type="text/plain" class="src" data-file="infra/k8s/deployment.yaml (excerpt)" data-lang="YAML">
+strategy:
+  type: RollingUpdate
+  rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }   # bring up new pod before killing old => zero downtime
+readinessProbe:                                         # don't send traffic until the app answers /health
+  httpGet: { path: /api/v1/health, port: 3000 }
+livenessProbe:                                          # restart the pod if it stops answering
+  httpGet: { path: /api/v1/health, port: 3000 }
+</script>
+
+      <h4>infra/terraform/ <span class="path">the AWS infrastructure as code</span></h4>
+      <p style="color:var(--muted);margin-top:-8px">Three files (<code class="inl">main.tf</code>, <code class="inl">variables.tf</code>, <code class="inl">outputs.tf</code>). Aim: provision the scaled tier (VPC, ECR, EKS, RDS) reproducibly. How: declarative AWS modules with remote S3 state + DynamoDB locking, so infra changes are reviewed and versioned like code.</p>
+      <script type="text/plain" class="src" data-file="infra/terraform/main.tf (excerpt)" data-lang="HCL">
+terraform {
+  backend "s3" {                                   # shared, locked state — team-safe
+    bucket = "healthcare-terraform-state"
+    dynamodb_table = "healthcare-terraform-locks"
+    encrypt = true
+  }
+}
+module "vpc" {                                     # a 2-AZ VPC with public+private subnets
+  source = "terraform-aws-modules/vpc/aws"
+  azs = ["${var.aws_region}a", "${var.aws_region}b"]
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+}
+</script>
+
+      <h4>root / <span class="path">repo-level orchestration &amp; docs</span></h4>
+      <div class="tblwrap"><table>
+        <thead><tr><th>File</th><th>Aim &amp; how</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">docker-compose.yml</td><td>The local stack in one command: Postgres + API (hot-reload) + Angular, networked together with health-gated startup.</td></tr>
+          <tr><td class="mono">render.yaml</td><td>The free-prod blueprint: a Render web service + managed Postgres; <code>JWT_SECRET</code> auto-generated, blanks marked <code>sync:false</code>.</td></tr>
+          <tr><td class="mono">vercel.json</td><td><strong>Prod half of the BFF seam</strong>: rewrites <code>/api/*</code> to the Render backend + SPA fallback. <em>&rarr; section 5.</em></td></tr>
+          <tr><td class="mono">tsconfig.json</td><td>Root TS config for editor tooling across both packages.</td></tr>
+          <tr><td class="mono">.github/workflows/ci.yml</td><td>The gate: type-check &rarr; migrate &rarr; test (80% floor) against a real Postgres service. <em>&rarr; section 11.</em></td></tr>
+          <tr><td class="mono">README.md · Healthcare-System.md · *.svg</td><td>Human docs and the architecture diagrams. (This walkthrough is the code-anchored companion to them.)</td></tr>
+        </tbody>
+      </table></div>
+      <script type="text/plain" class="src" data-file="render.yaml (excerpt)" data-lang="YAML">
+services:
+  - type: web
+    name: healthcare-api
+    buildCommand: cd server && npm ci --include=dev && npm run build
+    startCommand: node server/dist/server.js
+    healthCheckPath: /api/v1/health
+    envVars:
+      - { key: DATABASE_URL, fromDatabase: { name: healthcare-db, property: connectionString } }
+      - { key: JWT_SECRET, generateValue: true }     # Render mints a strong secret
+      - { key: CORS_ORIGIN, sync: false }            # set in dashboard, never committed
+</script>
+
+      <div class="box why">
+        <span class="lbl">The takeaway</span>
+        <p>Now every leaf folder in <code class="inl">server/</code>, <code class="inl">client/</code>, and <code class="inl">infra/</code> has a name, a job, and a caller. Combine this reference with the four traces (sections 5&ndash;8) and you can be dropped anywhere in the tree &mdash; a test helper, a Terraform module, a repository method &mdash; and explain what it's for, how it works, and who depends on it.</p>
       </div>
     </section>
 

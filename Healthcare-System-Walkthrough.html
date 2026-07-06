@@ -114,6 +114,8 @@
   .box.warn .lbl{color:#e5808a}
   .box.drift{border-color:var(--red-line);background:var(--red-soft)}
   .box.drift .lbl{color:#e5808a}
+  .fit{margin:16px 0 6px;padding:11px 15px;border-left:3px solid var(--red-line);background:var(--red-soft);border-radius:0 8px 8px 0;font-size:14.5px;color:var(--text)}
+  .fit b{display:block;color:var(--green);font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;margin-bottom:3px}
 
   /* ---- tables ---- */
   .tblwrap{overflow-x:auto;margin:18px 0;border:1px solid #1c1c1c;border-radius:10px}
@@ -925,6 +927,7 @@ export const config = parsed.data;
 
       <h4>server/ <span class="path">(project root of the API)</span></h4>
       <p style="color:var(--muted);margin-top:-8px">Build &amp; tooling config. No runtime logic &mdash; these files tell Node, TypeScript and Jest how to run everything under <code class="inl">src/</code>.</p>
+      <p class="fit"><b>Where it sits</b> The outermost build ring, off the request path entirely. It defines how the whole <code class="inl">src/</code> tree becomes a running, migrated, tested process &mdash; every runtime layer below exists only because these scripts compile and launch it.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>File</th><th>Aim &amp; how</th><th>Used by</th></tr></thead>
         <tbody>
@@ -947,6 +950,7 @@ export const config = parsed.data;
 
       <h4>server/src/ <span class="path">the composition root</span></h4>
       <p style="color:var(--muted);margin-top:-8px">The five files that wire the whole API together. Everything else is imported <em>into</em> here.</p>
+      <p class="fit"><b>Where it sits</b> The trunk of the backend. <code class="inl">app.ts</code> is where all the horizontal layers are assembled into one process, and every request enters here before fanning out to a module &mdash; the six modules are the branches off this trunk.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>File</th><th>Aim &amp; how</th><th>Connects to</th></tr></thead>
         <tbody>
@@ -966,6 +970,7 @@ export function registerSwagger(app: Express): void {
 
       <h4>server/src/middleware/ <span class="path">the cross-cutting guards</span></h4>
       <p style="color:var(--muted);margin-top:-8px">Seven small functions that run <em>between</em> the router and the controller. Each does one job and hands off with <code class="inl">next()</code>. <em>Full detail &rarr; section 8.</em></p>
+      <p class="fit"><b>Where it sits</b> The horizontal security band on the request spine, between the router and the controller. The same guards run for every module, so this folder is the backend's shared perimeter &mdash; nothing reaches business logic without crossing it.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>File</th><th>Aim &amp; how</th><th>Called by</th></tr></thead>
         <tbody>
@@ -993,6 +998,7 @@ return res.status(500).json({ status:'error', message:'Internal server error' })
 
       <h4>server/src/modules/&lt;feature&gt;/ <span class="path">the six feature modules</span></h4>
       <p style="color:var(--muted);margin-top:-8px">Each is the same five files (router / controller / service / repository / schemas &mdash; <em>the pattern &rarr; section 3</em>). Below is what's <strong>distinctive</strong> about each, since the shape is identical.</p>
+      <p class="fit"><b>Where it sits</b> The vertical slices and load-bearing core. Each module is one full <code class="inl">route&rarr;controller&rarr;service&rarr;repository</code> column for a single domain noun; this is where the request spine actually does its work, between the shared middleware above and the database below.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>Module</th><th>What it owns &amp; its one distinctive rule</th><th>Deep dive</th></tr></thead>
         <tbody>
@@ -1034,6 +1040,7 @@ await client.query('COMMIT');    // a doctor is a user + a doctor row; both or n
 
       <h4>server/src/migrations/ <span class="path">the schema, as versioned SQL</span></h4>
       <p style="color:var(--muted);margin-top:-8px">Numbered <code class="inl">.sql</code> files applied in order by an idempotent runner. They aim to build the whole database from nothing, safely, any number of times. <em>Runner &amp; the appointments index &rarr; section 10.</em></p>
+      <p class="fit"><b>Where it sits</b> Defines the foundation everything rests on &mdash; the database shape. It runs once before the app serves traffic, and every repository query in the layers above assumes the tables and indexes created here. It lives below the runtime, at the schema floor.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>File</th><th>Creates</th></tr></thead>
         <tbody>
@@ -1065,6 +1072,7 @@ CREATE TABLE IF NOT EXISTS doctors (
 
       <h4>server/src/seeds/ <span class="path">demo data</span></h4>
       <p style="color:var(--muted);margin-top:-8px">One file, <code class="inl">seed.ts</code>. Aim: create the three demo accounts (admin/doctor/patient) so a fresh clone is instantly usable. How: deletes those three emails first (so re-running is idempotent), then inserts them in a transaction.</p>
+      <p class="fit"><b>Where it sits</b> A setup-time side utility, off the request path. It fills the foundation (the DB) with starter rows so the running system has something to serve &mdash; nothing in the live request flow depends on it.</p>
       <script type="text/plain" class="src" data-file="server/src/seeds/seed.ts (excerpt)" data-lang="TypeScript">
 await client.query('BEGIN');
 await client.query(`DELETE FROM users WHERE email IN
@@ -1076,9 +1084,11 @@ await client.query('COMMIT');
 
       <h4>server/src/types/ <span class="path">shared contracts</span></h4>
       <p style="color:var(--muted);margin-top:-8px">One file, <code class="inl">index.ts</code>. Aim: a single source for cross-module types &mdash; the role/status unions, the DB row shapes, <code class="inl">AuthenticatedRequest</code>, and the <code class="inl">AppError</code> class every service throws. Imported by nearly every file; depends on nothing but Express types.</p>
+      <p class="fit"><b>Where it sits</b> Not a layer but the shared vocabulary every layer imports. The role/status unions, row shapes and <code class="inl">AppError</code> let each module's controller, service and repository speak the same language &mdash; horizontal glue that cuts across the whole backend.</p>
 
       <h4>server/tests/ &amp; server/tests/helpers/ <span class="path">the test suite</span></h4>
       <p style="color:var(--muted);margin-top:-8px">Six <code class="inl">*.test.ts</code> files (one per module) drive the <em>real</em> app with Supertest against a <em>real</em> Postgres &mdash; no mocks. <code class="inl">helpers/</code> gives them a clean DB. This is how the 80% coverage gate is met.</p>
+      <p class="fit"><b>Where it sits</b> The verification ring wrapped around the backend. It drives the real request spine from the outside &mdash; HTTP in, assertions out &mdash; against a real database, exercising every layer at once. It runs outside the runtime but is the safety net the CI gate enforces.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>File</th><th>Aim &amp; how</th><th>Called by</th></tr></thead>
         <tbody>
@@ -1107,6 +1117,7 @@ it('returns 409 if email already registered', async () => {
       <h3 class="title" style="border-top:2px solid var(--red);padding-top:26px;margin-top:44px">🌐 &nbsp;client &mdash; the Angular 19 app</h3>
 
       <h4>client/ &amp; client/src/ <span class="path">bootstrap &amp; static shell</span></h4>
+      <p class="fit"><b>Where it sits</b> The entry ring of the frontend &mdash; the second of the system's two programs. Booting the SPA happens here, and <code class="inl">proxy.conf.json</code> is the dev end of the BFF seam that joins this whole program to the backend.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>File</th><th>Aim &amp; how</th><th>Connects to</th></tr></thead>
         <tbody>
@@ -1126,6 +1137,7 @@ bootstrapApplication(AppComponent, appConfig).catch(err => console.error(err)); 
 </script>
 
       <h4>client/src/app/ <span class="path">the root component &amp; wiring</span></h4>
+      <p class="fit"><b>Where it sits</b> The frontend's composition root &mdash; the mirror of <code class="inl">server/src/</code>. It installs the interceptor, registers the guarded routes, and renders the shell that every screen mounts inside.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>File</th><th>Aim &amp; how</th><th>Connects to</th></tr></thead>
         <tbody>
@@ -1147,6 +1159,7 @@ export const routes: Routes = [
 
       <h4>client/src/app/core/ <span class="path">the plumbing (services, interceptor, guards, models)</span></h4>
       <p style="color:var(--muted);margin-top:-8px">This is the frontend's engine room &mdash; the four folders that make auth, routing and API calls work. The feature components stay dumb because this layer is smart.</p>
+      <p class="fit"><b>Where it sits</b> The frontend's engine room and its BFF-facing edge &mdash; the client-side counterpart to the server's auth middleware. All cross-cutting state and API plumbing live here, so the feature components above it can stay presentation-only.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>Folder / file</th><th>Aim &amp; how</th><th>Called by</th></tr></thead>
         <tbody>
@@ -1170,6 +1183,7 @@ export const adminGuard: CanActivateFn = () => {
 
       <h4>client/src/app/features/&lt;page&gt;/ <span class="path">one standalone component per screen</span></h4>
       <p style="color:var(--muted);margin-top:-8px">Six self-contained components. Each declares its own imports, holds its own form/display state, and calls the API through <code class="inl">HttpClient</code> (which the interceptor decorates). They aim to render a screen and collect input; all the hard rules live server-side.</p>
+      <p class="fit"><b>Where it sits</b> The outermost, user-facing leaves of the whole system &mdash; the only layer a human touches. Each screen delegates every rule and query downward through <code class="inl">core/</code> &rarr; the interceptor &rarr; the BFF seam &rarr; the backend spine, and holds no business logic itself.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>Component</th><th>Aim &amp; how</th><th>Calls</th></tr></thead>
         <tbody>
@@ -1197,6 +1211,7 @@ onSubmit(): void {
 
       <h4>infra/docker/ <span class="path">the container image</span></h4>
       <p style="color:var(--muted);margin-top:-8px">One <code class="inl">Dockerfile</code>. Aim: a small, safe production image. How: a two-stage build (compile in a fat stage, copy only <code>dist/</code> + prod deps into a slim one), runs as a <strong>non-root user</strong>, and self-reports health via the <code>/api/v1/health</code> endpoint.</p>
+      <p class="fit"><b>Where it sits</b> The packaging ring around the backend. It turns the compiled <code class="inl">server/</code> into one portable, non-root image &mdash; the single unit of shipping that Kubernetes, docker-compose and Render all run.</p>
       <script type="text/plain" class="src" data-file="infra/docker/Dockerfile (excerpt)" data-lang="Dockerfile">
 # Stage 1: build with dev deps
 FROM node:20-alpine AS builder
@@ -1216,6 +1231,7 @@ CMD ["node", "dist/server.js"]
 
       <h4>infra/k8s/ <span class="path">the Kubernetes deployment</span></h4>
       <p style="color:var(--muted);margin-top:-8px">Four manifests describing how the API runs on a cluster. They aim for zero-downtime rollout and self-healing.</p>
+      <p class="fit"><b>Where it sits</b> The top of the production runtime: how many container copies run, how traffic reaches them, and how they self-heal. The ingress here is the production twin of the dev proxy / Vercel BFF seam.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>File</th><th>Aim &amp; how</th></tr></thead>
         <tbody>
@@ -1237,6 +1253,7 @@ livenessProbe:                                          # restart the pod if it 
 
       <h4>infra/terraform/ <span class="path">the AWS infrastructure as code</span></h4>
       <p style="color:var(--muted);margin-top:-8px">Three files (<code class="inl">main.tf</code>, <code class="inl">variables.tf</code>, <code class="inl">outputs.tf</code>). Aim: provision the scaled tier (VPC, ECR, EKS, RDS) reproducibly. How: declarative AWS modules with remote S3 state + DynamoDB locking, so infra changes are reviewed and versioned like code.</p>
+      <p class="fit"><b>Where it sits</b> The foundation beneath the production runtime. It provisions the cloud the K8s layer runs on &mdash; network, registry, cluster, database &mdash; so nothing schedules or queries until this has built the ground first.</p>
       <script type="text/plain" class="src" data-file="infra/terraform/main.tf (excerpt)" data-lang="HCL">
 terraform {
   backend "s3" {                                   # shared, locked state — team-safe
@@ -1253,6 +1270,7 @@ module "vpc" {                                     # a 2-AZ VPC with public+priv
 </script>
 
       <h4>root / <span class="path">repo-level orchestration &amp; docs</span></h4>
+      <p class="fit"><b>Where it sits</b> The orchestration ring that ties the two programs and three tiers together. <code class="inl">docker-compose</code> (local), <code class="inl">vercel.json</code> (prod BFF seam), <code class="inl">render.yaml</code> (free tier) and CI don't live inside any single layer &mdash; they wire the layers into a deployable whole.</p>
       <div class="tblwrap"><table>
         <thead><tr><th>File</th><th>Aim &amp; how</th></tr></thead>
         <tbody>

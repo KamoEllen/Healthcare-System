@@ -116,6 +116,12 @@
   .box.drift .lbl{color:#e5808a}
   .fit{margin:16px 0 6px;padding:11px 15px;border-left:3px solid var(--red-line);background:var(--red-soft);border-radius:0 8px 8px 0;font-size:14.5px;color:var(--text)}
   .fit b{display:block;color:var(--green);font-size:11px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;margin-bottom:3px}
+  .dec{border:1px solid var(--red);border-radius:10px;padding:15px 18px;margin:16px 0;background:var(--panel)}
+  .dec h5{margin:0 0 9px;font-size:16px;color:#fff;font-weight:700}
+  .dec p{margin:6px 0;font-size:14.5px}
+  .dec .k{display:inline-block;min-width:78px;color:var(--green);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;vertical-align:top}
+  .dec .kr{color:#e5808a}
+  .dec .ke{color:var(--muted)}
 
   /* ---- tables ---- */
   .tblwrap{overflow-x:auto;margin:18px 0;border:1px solid #1c1c1c;border-radius:10px}
@@ -163,6 +169,7 @@
       <li><a href="#drift">Where the docs disagree with the code</a></li>
       <li><a href="#index">Reverse index &mdash; open any file</a></li>
       <li><a href="#files"><strong>Every folder, every file</strong></a></li>
+      <li><a href="#justify"><strong>Justifying every decision</strong></a></li>
     </ol>
   </nav>
 
@@ -1298,6 +1305,112 @@ services:
       <div class="box why">
         <span class="lbl">The takeaway</span>
         <p>Now every leaf folder in <code class="inl">server/</code>, <code class="inl">client/</code>, and <code class="inl">infra/</code> has a name, a job, and a caller. Combine this reference with the four traces (sections 5&ndash;8) and you can be dropped anywhere in the tree &mdash; a test helper, a Terraform module, a repository method &mdash; and explain what it's for, how it works, and who depends on it.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================= -->
+    <section id="justify">
+      <h2><span class="n">16</span>The Rationale</h2>
+      <h3 class="title">Justifying every decision made</h3>
+      <p class="lead">Every choice here reads the same way: <em class="k">do X, so that Y &mdash; not Z, because Z would cost you W.</em></p>
+      <p>The sections above explain <strong>what</strong> the system does and <strong>how</strong>. This one answers <strong>why</strong> &mdash; for the tools and for the design decisions, including the ones that <em>changed</em> mid-build. Read against section 12 (the compact ledger): that's the summary table; this is the reasoning, with the failure each decision prevents.</p>
+      <div class="box tell">
+        <span class="lbl">The two things every decision optimises for</span>
+        <p>Notice the pattern as you read: nearly every choice buys either <strong>visibility</strong> (you can see exactly what runs &mdash; the SQL, the middleware order, the query plan) or <strong>safety</strong> (fail closed, fail loud, and always leave a record). When a tool would trade either away for convenience, it was rejected.</p>
+      </div>
+
+      <!-- ---- TOOLING ---- -->
+      <h4>Part A &mdash; Why each tool was picked</h4>
+      <p>Each row is a decision, its payoff, and the alternative that was turned down. &ldquo;In code&rdquo; points to where the choice is visible.</p>
+      <div class="tblwrap"><table>
+        <thead><tr><th>Tool</th><th>Do this &hellip; so that &hellip;</th><th>Not &hellip; because</th><th>In code</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">Node + Express</td><td>Build on a <em>minimal</em> router+middleware lib, so every layer stays explicit and visible, and one language (TS) spans front &amp; back.</td><td>Not NestJS/Fastify-magic or Django/Rails/Spring &mdash; hidden framework behaviour or a second language would obscure the architecture this project exists to teach.</td><td class="mono">app.ts</td></tr>
+          <tr><td class="mono">TypeScript <code>strict</code></td><td>Turn on <code>strict:true</code>, so the contract between router&rarr;controller&rarr;service&rarr;repository is enforced at build time and JOIN field mismatches fail at compile.</td><td>Not JS or loose TS &mdash; those defer the same bugs to runtime in production.</td><td class="mono">tsconfig.json</td></tr>
+          <tr><td class="mono">PostgreSQL raw SQL</td><td>Hand-write SQL via <code>pg</code>, so the multi-table JOINs, partial indexes and audit-in-transaction stay visible and tunable.</td><td>Not Prisma/TypeORM (hide the query, fight complex JOINs) or Knex (abstraction without the payoff).</td><td class="mono">*.repository.ts</td></tr>
+          <tr><td class="mono">Zod</td><td>Write one <code>z.object</code> per input, so runtime validation and the TS type come from a single line (<code>z.infer</code>) and can't drift apart.</td><td>Not class-validator (needs a separate type) or manual checks (you write and maintain everything).</td><td class="mono">*.schemas.ts</td></tr>
+          <tr><td class="mono">JWT + refresh rotation</td><td>Issue a 15-min stateless access JWT + a rotating 7-day refresh token, so any pod can verify without a shared store, a stolen access token dies fast, and rotation detects a stolen refresh token.</td><td>Not DB sessions (need shared Redis across pods) or long-lived JWTs (no revocation).</td><td class="mono">auth.service.ts</td></tr>
+          <tr><td class="mono">SHA-256 refresh hash</td><td>Store only the token's hash, so a database breach yields tokens no one can use.</td><td>Not the raw token &mdash; a leaked DB would hand out live sessions.</td><td class="mono">auth.service.ts</td></tr>
+          <tr><td class="mono">HTTP-only cookie + in-memory token</td><td>Keep the refresh token in an <code>httpOnly, sameSite=strict</code> cookie and the access token in memory, so XSS can read neither and CSRF is blocked.</td><td>Not <code>localStorage</code> &mdash; any injected script can read it.</td><td class="mono">auth.controller.ts</td></tr>
+          <tr><td class="mono">Helmet</td><td>Call <code>helmet()</code> as the first middleware, so 14 security headers apply to every response &mdash; even error paths &mdash; and no route can bypass them.</td><td>Not setting headers by hand or late &mdash; easy to forget on some route.</td><td class="mono">app.ts</td></tr>
+          <tr><td class="mono">Nodemailer multi-provider</td><td>Select the transport from <code>EMAIL_PROVIDER</code>, so the same binary emails via Mailtrap / Resend / SES with zero code change.</td><td>Not hardcoded SMTP &mdash; every environment would need a code edit.</td><td class="mono">config.ts</td></tr>
+          <tr><td class="mono">Angular 19 standalone</td><td>Use standalone components + interceptor + guards, so there's no NgModule boilerplate, the JWT attaches automatically, and pages gate before they load.</td><td>Not NgModules &mdash; more boilerplate and murkier dependency trees.</td><td class="mono">app.config.ts</td></tr>
+          <tr><td class="mono">Docker multi-stage</td><td>Compile in a build stage, copy only <code>dist/</code> + prod deps into a slim non-root stage, so the image is ~40% smaller with no source, compiler or dev-deps to attack.</td><td>Not single-stage or root &mdash; bloated and a bigger attack surface.</td><td class="mono">infra/docker/Dockerfile</td></tr>
+          <tr><td class="mono">Kubernetes rolling update</td><td>Run 2 replicas with <code>maxUnavailable:0</code> and health probes, so deploys never drop traffic (uptime is patient safety), scaling is horizontal, and pods self-heal.</td><td>Not a single VPS (manual blue-green) or serverless (cold starts, unpredictable cost).</td><td class="mono">infra/k8s/deployment.yaml</td></tr>
+          <tr><td class="mono">Terraform</td><td>Define VPC/EKS/RDS/ECR as code with locked remote state, so production is reproducible and reviewed like code.</td><td>Not click-ops &mdash; drift and unrepeatable environments.</td><td class="mono">infra/terraform/main.tf</td></tr>
+          <tr><td class="mono">Jest + Supertest, 80% floor</td><td>Drive the real app against a real Postgres and gate merges at 80% coverage, so role rules, cookies and status codes are proven end-to-end and regressions block the merge.</td><td>Not mock-only unit tests &mdash; they miss the integration bugs that matter here.</td><td class="mono">tests/ · ci.yml</td></tr>
+        </tbody>
+      </table></div>
+      <p>Two justifications worth seeing in code &mdash; the strictness that enforces the layer contract, and the switch that makes one binary run in three environments:</p>
+      <script type="text/plain" class="src" data-file="server/tsconfig.json + config.ts (getEmailConfig)" data-lang="TypeScript">
+// tsconfig.json — strict:true is what makes the layered architecture hold together
+{ "compilerOptions": { "target": "ES2020", "module": "commonjs", "strict": true,
+    "outDir": "./dist", "rootDir": "./src", "esModuleInterop": true } }
+
+// config.ts — the same code, three providers, chosen by ONE env var (no code change to switch tiers)
+switch (config.EMAIL_PROVIDER) {
+  case 'resend': return { host: 'smtp.resend.com',                      port: 465, secure: true,  auth: {...} };
+  case 'ses':    return { host: `email-smtp.${config.AWS_REGION}.amazonaws.com`, port: 587, secure: false, auth: {...} };
+  default:       return { host: 'sandbox.smtp.mailtrap.io',            port: 2525, secure: false, auth: {...} };  // dev catches all
+}
+</script>
+
+      <!-- ---- EVOLUTION ---- -->
+      <h4>Part B &mdash; Decisions that changed mid-build (and why)</h4>
+      <p>These weren't right the first time. Each is framed as <em>started with &rarr; changed to &rarr; so that</em>, which is the most honest kind of justification &mdash; it shows the failure that forced the change.</p>
+
+      <div class="dec">
+        <h5>1 &nbsp;ORM &rarr; raw SQL</h5>
+        <p><span class="k">Started</span> intending to use Prisma.</p>
+        <p><span class="k">Changed</span> to raw SQL after writing the first multi-table appointment JOIN.</p>
+        <p><span class="k ke">So that</span> the query stayed readable and correct &mdash; Prisma's API needed workarounds for that exact JOIN shape, in more lines and with less visibility.</p>
+      </div>
+      <div class="dec">
+        <h5>2 &nbsp;Raw refresh token &rarr; SHA-256 hash</h5>
+        <p><span class="k">Started</span> planning to store the raw refresh token string.</p>
+        <p><span class="k">Changed</span> to storing only its hash, after a threat-model review &mdash; before any code was written.</p>
+        <p><span class="k ke">So that</span> read access to the database is worthless to an attacker: raw tokens are instantly usable, hashes are not.</p>
+      </div>
+      <div class="dec">
+        <h5>3 &nbsp;Hardcoded SMTP &rarr; <code>EMAIL_PROVIDER</code> env var</h5>
+        <p><span class="k">Started</span> with Mailtrap SMTP settings hardcoded for dev.</p>
+        <p><span class="k">Changed</span> to provider auto-selection from one env var.</p>
+        <p><span class="k ke">So that</span> the same codebase ships to every tier with only credentials supplied &mdash; no code edits between dev, free-prod and scaled.</p>
+      </div>
+      <div class="dec">
+        <h5>4 &nbsp;Audit-after &rarr; audit-inside the transaction</h5>
+        <p><span class="k">Started</span> writing the audit-log insert <em>after</em> the main action.</p>
+        <p><span class="k">Changed</span> to the same <code>BEGIN&hellip;COMMIT</code> as the action itself.</p>
+        <p><span class="k ke">So that</span> you can never get a state change with no record of it: if the audit insert fails, the business write rolls back too. <em>&rarr; Trace C.</em></p>
+      </div>
+      <div class="dec">
+        <h5>5 &nbsp;No window &rarr; 24-hour edit window on records</h5>
+        <p><span class="k">Started</span> with freely editable health records.</p>
+        <p><span class="k">Changed</span> to freeze a record 24 hours after creation.</p>
+        <p><span class="k ke">So that</span> medical records &mdash; legal documents &mdash; can't be quietly rewritten days later; corrections happen promptly and stay in the audit trail. <em>&rarr; section 9.</em></p>
+      </div>
+      <div class="dec">
+        <h5>6 &nbsp;In-memory slot filter &rarr; database <code>COUNT</code> + unique index</h5>
+        <p><span class="k">Started</span> by fetching a doctor's appointments and filtering in memory to check availability.</p>
+        <p><span class="k">Changed</span> to a single <code>COUNT(*)</code> query, backed by a partial unique index.</p>
+        <p><span class="k ke">So that</span> two simultaneous bookings can't both pass the check &mdash; the in-memory version had a race; the DB constraint can't. <em>&rarr; sections 4, 10.</em></p>
+      </div>
+      <div class="dec">
+        <h5>7 &nbsp;Two configs &rarr; three named tiers</h5>
+        <p><span class="k">Started</span> with just a dev config and a prod config.</p>
+        <p><span class="k">Changed</span> to development &rarr; free-tier production &rarr; scaled production.</p>
+        <p><span class="k ke">So that</span> there's a real deployment path with no credit card (Neon + Resend) &mdash; the gap between &ldquo;works locally&rdquo; and &ldquo;works for users&rdquo; was too large to skip. <em>&rarr; section 11.</em></p>
+      </div>
+      <div class="dec">
+        <h5>8 &nbsp;Per-service ownership checks &rarr; <code>isOwner</code> middleware</h5>
+        <p><span class="k">Started</span> handling &ldquo;is this your row?&rdquo; inside each service.</p>
+        <p><span class="k">Changed</span> to one dedicated middleware comparing <code>params.id</code> to <code>user.id</code>.</p>
+        <p><span class="k ke">So that</span> horizontal privilege escalation (one patient editing another via <code>PATCH /:id</code>) is blocked consistently in one place instead of re-implemented per route. <em>&rarr; section 8.</em></p>
+      </div>
+
+      <div class="box why">
+        <span class="lbl">The through-line</span>
+        <p>Read together, the tooling and the course-corrections tell one story: <strong>prefer the option you can see and verify, and when in doubt, fail safe and leave a record.</strong> Raw SQL over a hidden ORM, a DB constraint over an app check, audit inside the transaction, hashes over raw tokens, one binary configured by environment &mdash; every decision is the same instinct applied to a different layer. That instinct is the real thing to take from this codebase.</p>
       </div>
     </section>
 
